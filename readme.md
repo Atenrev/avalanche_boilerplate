@@ -46,5 +46,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## References
 This repository is based on the Avalanche library. If you use this code in your research, please consider citing the following paper:
 ```
-Carta, Antonio, et al. "Avalanche: A pytorch library for deep continual learning." Journal of Machine Learning Research 24.363 (2023): 1-6.
+@article{carta2023avalanche,
+  title={Avalanche: A pytorch library for deep continual learning},
+  author={Carta, Antonio and Pellegrini, Lorenzo and Cossu, Andrea and Hemati, Hamed and Lomonaco, Vincenzo},
+  journal={Journal of Machine Learning Research},
+  volume={24},
+  number={363},
+  pages={1--6},
+  year={2023}
+}
 ```
