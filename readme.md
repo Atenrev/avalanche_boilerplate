@@ -1,5 +1,5 @@
 # Avalanche Boilerplate
-This is a boilerplate for creating a new Avalanche project. It includes a basic structure for the project, as well as some useful tools and libraries.
+This is a boilerplate for creating a new continual learning project using the [Avalanche](https://github.com/ContinualAI/avalanche) library. It includes a basic structure for the project, as well as some useful tools and libraries.
 
 ## Getting Started
 To use the code, first clone the repository:
@@ -42,3 +42,9 @@ This command will generate plots and tables for the specified metrics and save t
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## References
+This repository is based on the Avalanche library. If you use this code in your research, please consider citing the following paper:
+```
+Carta, Antonio, et al. "Avalanche: A pytorch library for deep continual learning." Journal of Machine Learning Research 24.363 (2023): 1-6.
+```
