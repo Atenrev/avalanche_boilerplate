@@ -1,0 +1,4 @@
+from .split_mnist import SplitMNISTBenchmark
+from .split_fashion_mnist import SplitFashionMNISTBenchmark
+from .split_cifar10 import SplitCIFAR10Benchmark
+from .split_cifar100 import SplitCIFAR100Benchmark
