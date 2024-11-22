@@ -24,6 +24,7 @@ from src.transforms import *
 from src.criterions import *
 from src.loggers import *
 from src.models import *
+from src.plugins import *
 
 
 def evaluate_strategy(strategy, eval_benchmarks):
@@ -154,6 +155,17 @@ def run_experiment(args, seed):
     # CREATE THE PLUGINS
     plugins = []
 
+    if "linear_probing" in args.plugins:
+        plugins.append(LinearProbingPlugin(
+            benchmark=benchmark_class(
+                n_experiences=1,
+                shuffle=True,
+                seed=seed,
+                train_transform=train_transform,
+            ),
+            num_classes=num_classes
+        ))
+
     # CREATE THE STRATEGY INSTANCE 
     if args.strategy == "naive":
         if args.loss_type == "self_supervised":
@@ -161,6 +173,7 @@ def run_experiment(args, seed):
                 model,
                 optimizer,
                 BarlowTwinsLoss(),
+                ss_augmentations=BTTrainingAugmentations(image_size=args.image_size),
                 train_mb_size=args.batch_size,
                 train_epochs=args.epochs,
                 eval_mb_size=args.batch_size,

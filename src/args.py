@@ -32,8 +32,13 @@ def parse_args() -> argparse.Namespace:
                         choices=["loss", "accuracy", "forgetting", ],
                         help="Metrics to use for the benchmark")
     
+    # Plugins
+    parser.add_argument("--plugins", type=str, nargs='+', default=["linear_probing"],
+                        choices=["linear_probing"],
+                        help="Plugins to use for the benchmark")
+    
     # General training parameters
-    parser.add_argument("--epochs", type=int, default=2,
+    parser.add_argument("--epochs", type=int, default=1,
                         help="Number of epochs to use for the benchmark")
     parser.add_argument("--batch_size", type=int, default=256,
                         help="Batch size to use for the benchmark")
