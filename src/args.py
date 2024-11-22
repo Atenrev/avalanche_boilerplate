@@ -3,6 +3,9 @@ import argparse
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--loss_type", type=str, default="self_supervised",
+                        choices=["supervised", "self_supervised"],
+                        help="Type of loss to use for the benchmark")
     parser.add_argument("--strategy", type=str, default="naive",
                         choices=["naive", "cumulative", "lwf"], # ADD YOUR CUSTOM STRATEGIES HERE
                         help="Strategy to use for the benchmark")
@@ -10,18 +13,24 @@ def parse_args() -> argparse.Namespace:
     # ADD CUSTOM PARAMETERS HERE
 
     # Model parameters
-    parser.add_argument("--model", type=str, default="simple_mlp",
-                        choices=["simple_mlp", "resnet18"],
+    parser.add_argument("--model", type=str, default="resnet18_bt",
+                        choices=["simple_mlp", "resnet18", "resnet18_bt"],
                         help="Model to use for the benchmark")
 
     # Benchmark parameters
-    parser.add_argument("--benchmark", type=str, default="split_fashion_mnist",
+    parser.add_argument("--benchmark", type=str, default="split_cifar10",
                         choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100"],
                         help="Benchmark to use for the experiment")
     parser.add_argument("--n_experiences", type=int, default=5,
                         help="Number of experiences to use for the benchmark")
     parser.add_argument("--image_size", type=int, default=32,
                         help="Image size to use for the benchmark")
+    parser.add_argument("--transform", type=str, default="barlow_twins",
+                        choices=["none", "mnist", "cifar", "barlow_twins"],
+                        help="Transform to use for the benchmark")
+    parser.add_argument("--metrics", type=str, nargs='+', default=["loss"], 
+                        choices=["loss", "accuracy", "forgetting", ],
+                        help="Metrics to use for the benchmark")
     
     # General training parameters
     parser.add_argument("--epochs", type=int, default=2,

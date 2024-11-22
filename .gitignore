@@ -6,6 +6,7 @@
 /wandb
 /venv
 /data
+/avalanche
 
 ## PyTorch
 

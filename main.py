@@ -16,16 +16,14 @@ from avalanche.evaluation.metrics import (
 from avalanche.logging import InteractiveLogger, WandBLogger
 from avalanche.training.plugins import EvaluationPlugin
 from avalanche.training.supervised import Naive, LwF, Cumulative
+from avalanche.benchmarks import SplitMNIST, SplitFMNIST, SplitCIFAR10, SplitCIFAR100
+from avalanche.training.self_supervised import Naive as SelfSupervisedNaive
 
 from src.args import parse_args
-from src.benchmarks import (
-    SplitMNISTBenchmark,
-    SplitFashionMNISTBenchmark, 
-    SplitCIFAR10Benchmark, 
-    SplitCIFAR100Benchmark, 
-)
-
-from src.loggers import CSVLogger
+from src.transforms import *
+from src.criterions import *
+from src.loggers import *
+from src.models import *
 
 
 def evaluate_strategy(strategy, eval_benchmarks):
@@ -83,39 +81,45 @@ def run_experiment(args, seed):
     elif args.model == "resnet18":
         model = resnet18().to(device)
         model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
+    elif args.model == "resnet18_bt":
+        model = Resnet18BT().to(device)
     else:
         raise NotImplementedError
 
     # CREATE THE OPTIMIZER
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)        
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)   
 
-    # --- BENCHMARK CREATION      
+    # TRANSFORMS CREATION
+    if args.transform == "none":
+        train_transform, eval_transform = None, None
+    elif args.transform == "mnist":
+        train_transform, eval_transform = MNISTTransform(args.image_size)
+    elif args.transform == "cifar":
+        train_transform, eval_transform = CIFARTransform(args.image_size)
+    elif args.transform == "barlow_twins":
+        train_transform, eval_transform = BarlowTwinsTransform(args.image_size)
+    else:
+        raise NotImplementedError
+
+    # BENCHMARK CREATION      
     if args.benchmark == "split_mnist":
-        benchmark = SplitMNISTBenchmark(
-            n_experiences=args.n_experiences,
-            shuffle=True,
-            seed=seed,
-        )  
+        benchmark_class = SplitMNIST
     elif args.benchmark == "split_fashion_mnist":
-        benchmark = SplitFashionMNISTBenchmark(
-            n_experiences=args.n_experiences,
-            shuffle=True,
-            seed=seed,
-        )
+        benchmark_class = SplitFMNIST
     elif args.benchmark == "split_cifar10":
-        benchmark = SplitCIFAR10Benchmark(
-            n_experiences=args.n_experiences,
-            shuffle=True,
-            seed=seed,
-            image_size=args.image_size,
-        )
+        benchmark_class = SplitCIFAR10
     elif args.benchmark == "split_cifar100":
-        benchmark = SplitCIFAR100Benchmark(
-            n_experiences=args.n_experiences,
-            shuffle=True,
-            seed=seed,
-            image_size=args.image_size,
-        )
+        benchmark_class = SplitCIFAR100
+    else:
+        raise NotImplementedError
+
+    benchmark = benchmark_class(
+        n_experiences=args.n_experiences,
+        shuffle=True,
+        seed=seed,
+        train_transform=train_transform,
+        eval_transform=eval_transform,
+    )
 
     # METRICS AND LOGGERS
     interactive_logger = InteractiveLogger()
@@ -132,10 +136,17 @@ def run_experiment(args, seed):
             config=all_configs,
         ))
 
+    metrics = []
+
+    if "loss" in args.metrics:
+        metrics.append(loss_metrics(minibatch=True, epoch=True, experience=True, stream=True))
+    if "accuracy" in args.metrics:
+        metrics.append(accuracy_metrics(minibatch=True, epoch=True, experience=True, stream=True))
+    if "forgetting" in args.metrics:
+        metrics.append(forgetting_metrics(experience=True, stream=True))
+
     eval_plugin = EvaluationPlugin(
-        accuracy_metrics(minibatch=True, epoch=True, experience=True, trained_experience=True, stream=True),
-        loss_metrics(minibatch=True, epoch=True, experience=True, stream=True),
-        forgetting_metrics(experience=True, stream=True),
+        *metrics,
         # ADD YOUR CUSTOM METRICS HERE
         loggers=loggers,
     )
@@ -145,17 +156,30 @@ def run_experiment(args, seed):
 
     # CREATE THE STRATEGY INSTANCE 
     if args.strategy == "naive":
-        cl_strategy = Naive(
-            model,
-            optimizer,
-            CrossEntropyLoss(),
-            train_mb_size=args.batch_size,
-            train_epochs=args.epochs,
-            eval_mb_size=args.batch_size,
-            device=device,
-            plugins=plugins,
-            evaluator=eval_plugin,
-        )
+        if args.loss_type == "self_supervised":
+            cl_strategy = SelfSupervisedNaive(
+                model,
+                optimizer,
+                BarlowTwinsLoss(),
+                train_mb_size=args.batch_size,
+                train_epochs=args.epochs,
+                eval_mb_size=args.batch_size,
+                device=device,
+                plugins=plugins,
+                evaluator=eval_plugin,
+            )
+        elif args.loss_type == "supervised":
+            cl_strategy = Naive(
+                model,
+                optimizer,
+                CrossEntropyLoss(),
+                train_mb_size=args.batch_size,
+                train_epochs=args.epochs,
+                eval_mb_size=args.batch_size,
+                device=device,
+                plugins=plugins,
+                evaluator=eval_plugin,
+            )
     elif args.strategy == "cumulative":
         cl_strategy = Cumulative(
             model,
