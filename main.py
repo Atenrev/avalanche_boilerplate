@@ -192,7 +192,8 @@ def run_experiment(args, seed):
         plugins.append(LinearProbingPlugin(
             benchmark=get_benchmark(args.benchmark, seed, train_transform, eval_transform,
                                     n_experiences=1, dataset_root=args.dataset_root),
-            num_classes=num_classes
+            num_classes=num_classes,
+            epochs=args.probe_epochs,
         ))
 
     # CREATE THE STRATEGY INSTANCE

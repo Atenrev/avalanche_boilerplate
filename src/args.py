@@ -45,7 +45,7 @@ def parse_args() -> argparse.Namespace:
                         help="Plugins to use for the benchmark")
     
     # General training parameters
-    parser.add_argument("--epochs", type=int, default=1,
+    parser.add_argument("--epochs", type=int, default=20,
                         help="Number of epochs to use for the benchmark")
     parser.add_argument("--batch_size", type=int, default=256,
                         help="Batch size to use for the benchmark")
@@ -53,6 +53,10 @@ def parse_args() -> argparse.Namespace:
     # Optimizer parameters
     parser.add_argument("--lr", type=float, default=1e-4,
                         help="Learning rate to use for the benchmark")
+    
+    # Linear Probing parameters
+    parser.add_argument("--probe_epochs", type=int, default=10,
+                        help="Number of epochs to use for the linear probing classifier")
 
     # Learning without forgetting parameters
     parser.add_argument("--alpha", type=float, default=1.0,
