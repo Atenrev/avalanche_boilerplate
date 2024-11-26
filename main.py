@@ -16,10 +16,11 @@ from avalanche.evaluation.metrics import (
 from avalanche.logging import InteractiveLogger, WandBLogger
 from avalanche.training.plugins import EvaluationPlugin
 from avalanche.training.supervised import Naive, LwF, Cumulative
-from avalanche.benchmarks import SplitMNIST, SplitFMNIST, SplitCIFAR10, SplitCIFAR100
+from avalanche.benchmarks import SplitMNIST, SplitFMNIST, SplitCIFAR10, SplitCIFAR100, PermutedMNIST
 from avalanche.training.self_supervised import Naive as SelfSupervisedNaive
 
 from src.args import parse_args
+from src.benchmarks import *
 from src.transforms import *
 from src.criterions import *
 from src.loggers import *
@@ -31,11 +32,43 @@ def evaluate_strategy(strategy, eval_benchmarks):
     for benchmark, benchmark_name, current_classnames, current_bias_list in eval_benchmarks:
         print(f"Evaluating benchmark {benchmark_name}")
         strategy.eval(
-            benchmark.test_stream, 
+            benchmark.test_stream,
             benchmark_name=benchmark_name,
             current_classnames=current_classnames,
             current_bias_list=current_bias_list,
         )
+
+
+def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_experiences=1, dataset_root=None):
+    base_params = {
+        "n_experiences": n_experiences,
+        "shuffle": True,
+        "seed": seed,
+        "train_transform": train_transform,
+        "eval_transform": eval_transform,
+    }
+
+    if benchmark_name == "split_mnist":
+        benchmark_class = SplitMNIST
+    elif benchmark_name == "split_fashion_mnist":
+        benchmark_class = SplitFMNIST
+    elif benchmark_name == "split_cifar10":
+        benchmark_class = SplitCIFAR10
+    elif benchmark_name == "split_cifar100":
+        benchmark_class = SplitCIFAR100
+    elif benchmark_name == "concon_strict":
+        benchmark_class = ConConStrict
+        base_params["dataset_root"] = dataset_root
+    elif benchmark_name == "concon_disjoint":
+        benchmark_class = ConConDisjoint
+        base_params["dataset_root"] = dataset_root
+    elif benchmark_name == "concon_unconfounded":
+        benchmark_class = ConConUnconfounded
+        base_params["dataset_root"] = dataset_root
+    else:
+        raise NotImplementedError
+
+    return benchmark_class(**base_params)
 
 
 def run_experiment(args, seed):
@@ -43,7 +76,8 @@ def run_experiment(args, seed):
     RNGManager.set_random_seeds(seed)
     torch.backends.cudnn.deterministic = True
     device = torch.device(
-        f"cuda:{args.cuda}" if torch.cuda.is_available() and args.cuda >= 0 else "cpu"
+        f"cuda:{args.cuda}" if torch.cuda.is_available(
+        ) and args.cuda >= 0 else "cpu"
     )
 
     run_name = f"{args.strategy}_on_{args.model}"
@@ -53,9 +87,10 @@ def run_experiment(args, seed):
 
     # ADD CUSTOM PARAMETERS TO THE RUN NAME HERE
 
-    run_name += f"_lr({args.lr})_bs({args.batch_size})_epochs({args.epochs})" 
+    run_name += f"_lr({args.lr})_bs({args.batch_size})_epochs({args.epochs})"
 
-    output_dir = os.path.join(args.output_dir, args.benchmark, run_name, str(seed))
+    output_dir = os.path.join(
+        args.output_dir, args.benchmark, run_name, str(seed))
     os.makedirs(output_dir, exist_ok=True)
     logs_dir = os.path.join(output_dir, "logs")
     os.makedirs(logs_dir, exist_ok=True)
@@ -76,9 +111,9 @@ def run_experiment(args, seed):
 
     if args.model == "simple_mlp":
         model = SimpleMLP(
-            num_classes=num_classes, 
+            num_classes=num_classes,
             input_size=3 * args.image_size * args.image_size
-        ).to(device)  
+        ).to(device)
     elif args.model == "resnet18":
         model = resnet18().to(device)
         model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
@@ -88,7 +123,7 @@ def run_experiment(args, seed):
         raise NotImplementedError
 
     # CREATE THE OPTIMIZER
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)   
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     # TRANSFORMS CREATION
     if args.transform == "none":
@@ -102,27 +137,18 @@ def run_experiment(args, seed):
     else:
         raise NotImplementedError
 
-    # BENCHMARK CREATION      
-    if args.benchmark == "split_mnist":
-        benchmark_class = SplitMNIST
-    elif args.benchmark == "split_fashion_mnist":
-        benchmark_class = SplitFMNIST
-    elif args.benchmark == "split_cifar10":
-        benchmark_class = SplitCIFAR10
-    elif args.benchmark == "split_cifar100":
-        benchmark_class = SplitCIFAR100
-    else:
-        raise NotImplementedError
+    # TRAIN BENCHMARK CREATION
+    benchmark = get_benchmark(args.benchmark, seed, train_transform, eval_transform,
+                              n_experiences=args.n_experiences, dataset_root=args.dataset_root)
 
-    benchmark = benchmark_class(
-        n_experiences=args.n_experiences,
-        shuffle=True,
-        seed=seed,
-        train_transform=train_transform,
-        eval_transform=eval_transform,
-    )
+    # EVAL BENCHMARK CREATION
+    eval_benchmarks = [
+        get_benchmark(benchmark_name, seed, train_transform, eval_transform,
+                      n_experiences=args.n_experiences, dataset_root=args.dataset_root)
+        for benchmark_name in args.eval_benchmarks
+    ]
 
-    # METRICS AND LOGGERS
+    # LOGGERS
     interactive_logger = InteractiveLogger()
     csv_logger = CSVLogger(logs_dir)
     loggers = [interactive_logger, csv_logger]
@@ -137,12 +163,19 @@ def run_experiment(args, seed):
             config=all_configs,
         ))
 
+    # METRICS
     metrics = []
 
     if "loss" in args.metrics:
-        metrics.append(loss_metrics(minibatch=True, epoch=True, experience=True, stream=True))
+        metrics.append(loss_metrics(
+            minibatch=True, epoch=True, experience=True, stream=True))
     if "accuracy" in args.metrics:
-        metrics.append(accuracy_metrics(minibatch=True, epoch=True, experience=True, stream=True))
+        keep_track_during_training = args.loss_type != "self_supervised"
+        metrics.append(accuracy_metrics(
+            minibatch=keep_track_during_training,
+            epoch=keep_track_during_training,
+            experience=True, stream=True
+        ))
     if "forgetting" in args.metrics:
         metrics.append(forgetting_metrics(experience=True, stream=True))
 
@@ -157,23 +190,20 @@ def run_experiment(args, seed):
 
     if "linear_probing" in args.plugins:
         plugins.append(LinearProbingPlugin(
-            benchmark=benchmark_class(
-                n_experiences=1,
-                shuffle=True,
-                seed=seed,
-                train_transform=train_transform,
-            ),
+            benchmark=get_benchmark(args.benchmark, seed, train_transform, eval_transform,
+                                    n_experiences=1, dataset_root=args.dataset_root),
             num_classes=num_classes
         ))
 
-    # CREATE THE STRATEGY INSTANCE 
+    # CREATE THE STRATEGY INSTANCE
     if args.strategy == "naive":
         if args.loss_type == "self_supervised":
             cl_strategy = SelfSupervisedNaive(
                 model,
                 optimizer,
                 BarlowTwinsLoss(),
-                ss_augmentations=BTTrainingAugmentations(image_size=args.image_size),
+                ss_augmentations=BTTrainingAugmentations(
+                    image_size=args.image_size),
                 train_mb_size=args.batch_size,
                 train_epochs=args.epochs,
                 eval_mb_size=args.batch_size,
@@ -222,22 +252,24 @@ def run_experiment(args, seed):
     # ADD YOUR CUSTOM STRATEGIES HERE
     else:
         raise NotImplementedError
-    
+
     if args.resume_from_checkpoint:
-        cl_strategy, initial_exp = maybe_load_checkpoint(cl_strategy, checkpoint_path)
+        cl_strategy, initial_exp = maybe_load_checkpoint(
+            cl_strategy, checkpoint_path)
     else:
         initial_exp = 0
 
     # TRAINING LOOP
     print("Starting experiment...")
-    
+
     for experience in benchmark.train_stream[initial_exp:]:
         print("Start of experience ", experience.current_experience)
         cl_strategy.train(experience)
         print("Training completed")
 
         print("Evaluation of the current strategy:")
-        cl_strategy.eval(benchmark.test_stream)
+        for eval_benchmark in eval_benchmarks:
+            cl_strategy.eval(eval_benchmark.test_stream)
         print("Evaluation completed")
 
         # print("Saving checkpoint")

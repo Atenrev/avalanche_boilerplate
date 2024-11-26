@@ -1,7 +1,9 @@
 import torch
 from torch import nn
 
-from avalanche.benchmarks import NCScenario
+from typing import Union
+
+from avalanche.benchmarks import NCScenario, NIScenario
 from avalanche.core import SelfSupervisedPlugin
 from avalanche.training.supervised import Naive
 
@@ -13,7 +15,7 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
     used to compute the accuracy.
     """
 
-    def __init__(self, benchmark: NCScenario, num_classes: int, epochs: int = 1):
+    def __init__(self, benchmark: Union[NCScenario, NIScenario], num_classes: int, epochs: int = 1):
         super().__init__()
         self.benchmark = benchmark
         self.num_classes = num_classes

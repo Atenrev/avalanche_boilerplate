@@ -18,9 +18,16 @@ def parse_args() -> argparse.Namespace:
                         help="Model to use for the benchmark")
 
     # Benchmark parameters
-    parser.add_argument("--benchmark", type=str, default="split_cifar10",
-                        choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100"],
+    parser.add_argument("--benchmark", type=str, default="concon_disjoint",
+                        choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100",
+                                 "concon_disjoint", "concon_strict", "concon_unconf"],
                         help="Benchmark to use for the experiment")
+    parser.add_argument("--eval_benchmarks", type=str, nargs='+', default=["concon_disjoint", "concon_unconfounded"],
+                        choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100",
+                                 "concon_disjoint", "concon_strict", "concon_unconfounded"],
+                        help="Benchmarks to use for evaluation")
+    parser.add_argument("--dataset_root", type=str, default="data/concon",
+                        help="Root directory of the dataset")
     parser.add_argument("--n_experiences", type=int, default=5,
                         help="Number of experiences to use for the benchmark")
     parser.add_argument("--image_size", type=int, default=32,
@@ -28,7 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--transform", type=str, default="barlow_twins",
                         choices=["none", "mnist", "cifar", "barlow_twins"],
                         help="Transform to use for the benchmark")
-    parser.add_argument("--metrics", type=str, nargs='+', default=["loss"], 
+    parser.add_argument("--metrics", type=str, nargs='+', default=["loss", "accuracy", "forgetting"], 
                         choices=["loss", "accuracy", "forgetting", ],
                         help="Metrics to use for the benchmark")
     
