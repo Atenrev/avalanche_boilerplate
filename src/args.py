@@ -28,7 +28,7 @@ def parse_args() -> argparse.Namespace:
                         help="Benchmarks to use for evaluation")
     parser.add_argument("--dataset_root", type=str, default="data/concon",
                         help="Root directory of the dataset")
-    parser.add_argument("--n_experiences", type=int, default=5,
+    parser.add_argument("--n_experiences", type=int, default=1,
                         help="Number of experiences to use for the benchmark")
     parser.add_argument("--image_size", type=int, default=32,
                         help="Image size to use for the benchmark")
@@ -51,12 +51,14 @@ def parse_args() -> argparse.Namespace:
                         help="Batch size to use for the benchmark")
     
     # Optimizer parameters
-    parser.add_argument("--lr", type=float, default=1e-4,
+    parser.add_argument("--lr", type=float, default=1e-3,
                         help="Learning rate to use for the benchmark")
     
     # Linear Probing parameters
-    parser.add_argument("--probe_epochs", type=int, default=10,
+    parser.add_argument("--probe_epochs", type=int, default=4,
                         help="Number of epochs to use for the linear probing classifier")
+    parser.add_argument("--probe_lr", type=float, default=1e-3,
+                        help="Learning rate to use for the linear probing classifier")
 
     # Learning without forgetting parameters
     parser.add_argument("--alpha", type=float, default=1.0,

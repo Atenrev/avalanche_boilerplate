@@ -15,11 +15,12 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
     used to compute the accuracy.
     """
 
-    def __init__(self, benchmark: Union[NCScenario, NIScenario], num_classes: int, epochs: int = 1):
+    def __init__(self, benchmark: Union[NCScenario, NIScenario], num_classes: int, epochs: int = 1, lr: float = 1e-3):
         super().__init__()
         self.benchmark = benchmark
         self.num_classes = num_classes
         self.train_epochs = epochs
+        self.lr = lr
         self.probe_model = None
         self.probe_strategy = None
 
@@ -49,7 +50,7 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
 
         self.probe_strategy = Naive(
             model=self.probe_model,
-            optimizer=torch.optim.Adam(self.probe_model.parameters(), lr=0.01),
+            optimizer=torch.optim.Adam(self.probe_model.parameters(), lr=self.lr),
             criterion=nn.CrossEntropyLoss(),
             train_mb_size=strategy.train_mb_size,
             eval_mb_size=strategy.eval_mb_size,

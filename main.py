@@ -13,10 +13,10 @@ from avalanche.evaluation.metrics import (
     accuracy_metrics,
     loss_metrics,
 )
-from avalanche.logging import InteractiveLogger, WandBLogger
+from avalanche.logging import InteractiveLogger
 from avalanche.training.plugins import EvaluationPlugin
 from avalanche.training.supervised import Naive, LwF, Cumulative
-from avalanche.benchmarks import SplitMNIST, SplitFMNIST, SplitCIFAR10, SplitCIFAR100, PermutedMNIST
+from avalanche.benchmarks import SplitMNIST, SplitFMNIST, SplitCIFAR10, SplitCIFAR100
 from avalanche.training.self_supervised import Naive as SelfSupervisedNaive
 
 from src.args import parse_args
@@ -68,7 +68,9 @@ def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_exper
     else:
         raise NotImplementedError
 
-    return benchmark_class(**base_params)
+    benchmark = benchmark_class(**base_params)
+    benchmark.name = benchmark_name
+    return benchmark
 
 
 def run_experiment(args, seed):
@@ -80,14 +82,22 @@ def run_experiment(args, seed):
         ) and args.cuda >= 0 else "cpu"
     )
 
-    run_name = f"{args.strategy}_on_{args.model}"
+    run_name = f"{args.strategy}_w_{args.model}_on_{args.benchmark}"
+    run_name += f"_lr({args.lr})_bs({args.batch_size})_epochs({args.epochs})_exps({args.n_experiences})"
 
     if args.strategy == "lwf":
         run_name += f"_alpha({args.alpha})"
+        
+    if args.loss_type == "self_supervised":
+        run_name += f"_loss({args.loss_type})"
 
     # ADD CUSTOM PARAMETERS TO THE RUN NAME HERE
-
-    run_name += f"_lr({args.lr})_bs({args.batch_size})_epochs({args.epochs})"
+    
+    if "linear_probing" in args.plugins:
+        run_name += "_linear_probing"
+        run_name += f"_probe_lr({args.probe_lr})_probe_epochs({args.probe_epochs})"
+        
+    # ADD CUSTOM PLUGIN PARAMETERS TO THE RUN NAME HERE
 
     output_dir = os.path.join(
         args.output_dir, args.benchmark, run_name, str(seed))
@@ -181,7 +191,6 @@ def run_experiment(args, seed):
 
     eval_plugin = EvaluationPlugin(
         *metrics,
-        # ADD YOUR CUSTOM METRICS HERE
         loggers=loggers,
     )
 
@@ -194,6 +203,7 @@ def run_experiment(args, seed):
                                     n_experiences=1, dataset_root=args.dataset_root),
             num_classes=num_classes,
             epochs=args.probe_epochs,
+            lr=args.probe_lr,
         ))
 
     # CREATE THE STRATEGY INSTANCE
