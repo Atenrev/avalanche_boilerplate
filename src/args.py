@@ -3,19 +3,17 @@ import argparse
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--loss_type", type=str, default="self_supervised",
-                        choices=["supervised", "self_supervised"],
-                        help="Type of loss to use for the benchmark")
     parser.add_argument("--strategy", type=str, default="naive",
                         choices=["naive", "cumulative", "lwf"], # ADD YOUR CUSTOM STRATEGIES HERE
-                        help="Strategy to use for the benchmark")
+                        help="Strategy to use")
     
     # ADD CUSTOM PARAMETERS HERE
 
     # Model parameters
-    parser.add_argument("--model", type=str, default="resnet32s_bt",
-                        choices=["simple_mlp", "resnet32s", "resnet32s_bt"],
-                        help="Model to use for the benchmark")
+    parser.add_argument("--model", type=str, default="resnet18_mini_encoder",
+                        choices=["simple_mlp", "resnet32s", 
+                                 "resnet18_encoder", "resnet18_mini_encoder"],
+                        help="Model to use. Models that end with _encoder are used for self-supervised learning")
 
     # Benchmark parameters
     parser.add_argument("--benchmark", type=str, default="split_cifar10",
@@ -29,30 +27,45 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset_root", type=str, default="data/concon",
                         help="Root directory of the dataset")
     parser.add_argument("--n_experiences", type=int, default=1,
-                        help="Number of experiences to use for the benchmark")
+                        help="Number of experiences to use")
     parser.add_argument("--image_size", type=int, default=32,
-                        help="Image size to use for the benchmark")
-    parser.add_argument("--transform", type=str, default="barlow_twins",
-                        choices=["none", "mnist", "cifar", "barlow_twins"],
-                        help="Transform to use for the benchmark")
+                        help="Image size to use")
+    parser.add_argument("--transform", type=str, default="emp_ssl",
+                        choices=["none", "mnist", "cifar", "barlow_twins", "emp_ssl"],
+                        help="Transform to use")
     parser.add_argument("--metrics", type=str, nargs='+', default=["loss", "accuracy", "forgetting"], 
                         choices=["loss", "accuracy", "forgetting", ],
-                        help="Metrics to use for the benchmark")
+                        help="Metrics to use")
     
     # Plugins
     parser.add_argument("--plugins", type=str, nargs='+', default=["linear_probing"],
                         choices=["linear_probing"],
-                        help="Plugins to use for the benchmark")
+                        help="Plugins to use")
     
     # General training parameters
+    parser.add_argument("--loss_type", type=str, default="self_supervised",
+                        choices=["supervised", "self_supervised"],
+                        help="Type of loss to use")
+    parser.add_argument("--criterion", type=str, default="emp_ssl",
+                        choices=["CE", "barlow_twins", "emp_ssl"],
+                        help="Criterion to use for the training")
     parser.add_argument("--epochs", type=int, default=1,
-                        help="Number of epochs to use for the benchmark")
+                        help="Number of epochs to use")
     parser.add_argument("--batch_size", type=int, default=128,
-                        help="Batch size to use for the benchmark")
+                        help="Batch size to use")
     
     # Optimizer parameters
-    parser.add_argument("--lr", type=float, default=1e-3,
-                        help="Learning rate to use for the benchmark")
+    parser.add_argument("--optimizer", type=str, default="adam",
+                        choices=["adam", "sgd"],
+                        help="Optimizer to use")
+    parser.add_argument("--lr", type=float, default=0.2,
+                        help="Learning rate to use with the optimizer")
+    parser.add_argument("--weight_decay", type=float, default=1e-4,
+                        help="Weight decay to use with the optimizer")
+    parser.add_argument("--momentum", type=float, default=0.9,
+                        help="Momentum to use with the optimizer")
+    parser.add_argument("--nesterov", action="store_true", default=True,
+                        help="Use Nesterov momentum with the optimizer")
     
     # Linear Probing parameters
     parser.add_argument("--probe_epochs", type=int, default=4,

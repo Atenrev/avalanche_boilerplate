@@ -2,6 +2,7 @@ import os
 import torch
 import torch.optim.lr_scheduler
 
+from torch import nn
 from torch.nn import CrossEntropyLoss
 from torchvision.models import resnet18
 
@@ -29,15 +30,28 @@ from src.models import *
 from src.plugins import *
 
 
-def evaluate_strategy(strategy, eval_benchmarks):
-    for benchmark, benchmark_name, current_classnames, current_bias_list in eval_benchmarks:
-        print(f"Evaluating benchmark {benchmark_name}")
-        strategy.eval(
-            benchmark.test_stream,
-            benchmark_name=benchmark_name,
-            current_classnames=current_classnames,
-            current_bias_list=current_bias_list,
+def get_model(model_name, num_classes, device, no_head=False):
+    if model_name == "simple_mlp":
+        model = SimpleMLP(
+            num_classes=num_classes,
+            input_size=3 * args.image_size * args.image_size,
+            hidden_size=512,
         )
+
+        if no_head:
+            model.classifier = nn.Identity()
+        else:
+            model.classifier = nn.Linear(512, num_classes)
+    elif model_name == "resnet32s":
+        model = ResNet(BasicBlock, [5, 5, 5], num_classes=num_classes)
+    elif model_name == "resnet18_encoder":
+        model = ResNet18(mini_version=False)
+    elif model_name == "resnet18_mini_encoder":
+        model = ResNet18(mini_version=True)
+    else:
+        raise NotImplementedError
+
+    return model.to(device)
 
 
 def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_experiences=1, dataset_root=None):
@@ -93,32 +107,56 @@ def get_strategy(args, model, optimizer, device, plugins, eval_plugin):
         "plugins": plugins,
         "evaluator": eval_plugin,
     }
-        
+
+    if args.criterion == "CE":
+        assert args.loss_type == "supervised"
+        base_params["criterion"] = CrossEntropyLoss()
+    elif args.criterion == "barlow_twins":
+        assert args.loss_type == "self_supervised"
+        base_params["criterion"] = BarlowTwinsLoss()
+        base_params["ss_augmentations"] = BTTrainingAugmentations(
+            image_size=args.image_size
+        )
+    elif args.criterion == "emp_ssl":
+        assert args.loss_type == "self_supervised"
+        base_params["criterion"] = EMPSLLLoss()
+        base_params["ss_augmentations"] = EMPSSLTrainingAugmentations(
+            image_size=args.image_size,
+            num_patch=100
+        )
+    else:
+        raise NotImplementedError
+
     if args.strategy == "naive":
         if args.loss_type == "self_supervised":
             strategy_class = SelfSupervisedNaive
-            base_params["criterion"] = BarlowTwinsLoss()
             base_params["eval_criterion"] = torch.nn.CrossEntropyLoss()
-            base_params["ss_augmentations"] = BTTrainingAugmentations(
-                image_size=args.image_size)
         elif args.loss_type == "supervised":
             strategy_class = Naive
-            base_params["criterion"] = CrossEntropyLoss()
         else:
             raise NotImplementedError
     elif args.strategy == "cumulative":
         strategy_class = Cumulative
-        base_params["criterion"] = CrossEntropyLoss()
     elif args.strategy == "lwf":
         strategy_class = LwF
-        base_params["criterion"] = CrossEntropyLoss()
         base_params["alpha"] = args.alpha
         base_params["temperature"] = args.temperature
     # ADD YOUR CUSTOM STRATEGIES HERE
     else:
         raise NotImplementedError
-    
+
     return strategy_class(**base_params)
+
+
+def evaluate_strategy(strategy, eval_benchmarks):
+    for benchmark, benchmark_name, current_classnames, current_bias_list in eval_benchmarks:
+        print(f"Evaluating benchmark {benchmark_name}")
+        strategy.eval(
+            benchmark.test_stream,
+            benchmark_name=benchmark_name,
+            current_classnames=current_classnames,
+            current_bias_list=current_bias_list,
+        )
 
 
 def run_experiment(args, seed):
@@ -137,11 +175,11 @@ def run_experiment(args, seed):
 
     if args.strategy == "lwf":
         run_name += f"_alpha({args.alpha})"
-    
+
     if "linear_probing" in args.plugins:
         run_name += "_linear_probing"
         run_name += f"_probe_lr({args.probe_lr})_probe_epochs({args.probe_epochs})"
-        
+
     # ADD CUSTOM PLUGIN PARAMETERS TO THE RUN NAME HERE
 
     output_dir = os.path.join(
@@ -160,7 +198,7 @@ def run_experiment(args, seed):
     # SAVE CONFIG
     with open(os.path.join(logs_dir, "config.txt"), "w") as f:
         f.write(str(args))
-        
+
     # TRANSFORMS CREATION
     if args.transform == "none":
         train_transform, eval_transform = None, None
@@ -170,12 +208,14 @@ def run_experiment(args, seed):
         train_transform, eval_transform = CIFARTransform(args.image_size)
     elif args.transform == "barlow_twins":
         train_transform, eval_transform = BarlowTwinsTransform(args.image_size)
+    elif args.transform == "emp_ssl":
+        train_transform, eval_transform = EMPSSLTransform(args.image_size)
     else:
         raise NotImplementedError
-        
+
     # TRAIN BENCHMARK CREATION
     benchmark, num_classes = get_benchmark(args.benchmark, seed, train_transform, eval_transform,
-                              n_experiences=args.n_experiences, dataset_root=args.dataset_root)
+                                           n_experiences=args.n_experiences, dataset_root=args.dataset_root)
 
     # EVAL BENCHMARK CREATION
     eval_benchmarks = [
@@ -185,20 +225,24 @@ def run_experiment(args, seed):
     ]
 
     # MODEL CREATION
-    if args.model == "simple_mlp":
-        model = SimpleMLP(
-            num_classes=num_classes,
-            input_size=3 * args.image_size * args.image_size
-        ).to(device)
-    elif args.model == "resnet32s":
-        model = ResNet(BasicBlock, [5, 5, 5], num_classes=num_classes).to(device)
-    elif args.model == "resnet32s_bt":
-        model = Resnet32sBT().to(device)
-    else:
-        raise NotImplementedError
+    no_head = args.loss_type == "self_supervised"
+    model = get_model(args.model, num_classes, device, no_head=no_head)
 
     # CREATE THE OPTIMIZER
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    if args.optimizer == "adam":
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=args.lr)
+    elif args.optimizer == "sgd":
+        optimizer = torch.optim.SGD(
+            model.parameters(),
+            lr=args.lr,
+            momentum=args.momentum,
+            nesterov=args.nesterov,
+            weight_decay=args.weight_decay
+        )
+    else:
+        raise NotImplementedError
 
     # LOGGERS
     interactive_logger = InteractiveLogger()
@@ -249,7 +293,8 @@ def run_experiment(args, seed):
         ))
 
     # CREATE THE STRATEGY INSTANCE
-    cl_strategy = get_strategy(args, model, optimizer, device, plugins, eval_plugin)
+    cl_strategy = get_strategy(
+        args, model, optimizer, device, plugins, eval_plugin)
 
     if args.resume_from_checkpoint:
         cl_strategy, initial_exp = maybe_load_checkpoint(

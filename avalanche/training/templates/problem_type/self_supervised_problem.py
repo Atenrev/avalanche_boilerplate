@@ -22,20 +22,6 @@ class SelfSupervisedProblem(
         return mbatch[0]
 
     @property
-    def mb_x1(self):
-        """Current mini-batch augmented input 1."""
-        mbatch = self.mb_x
-        assert type(mbatch) == list or type(mbatch) == tuple
-        return mbatch[0]
-    
-    @property
-    def mb_x2(self):
-        """Current mini-batch input 2."""
-        mbatch = self.mb_x
-        assert type(mbatch) == list or type(mbatch) == tuple
-        return mbatch[1]
-
-    @property
     def mb_y(self):
         """Current mini-batch target."""
         mbatch = self.mbatch
@@ -53,7 +39,7 @@ class SelfSupervisedProblem(
     def criterion(self):
         """Loss function for self-supervised problems."""
         if self.is_training or self._eval_criterion is None:
-            return self._criterion(self.mb_output[0], self.mb_output[1])
+            return self._criterion(self.mb_output)
         else:
             return self._eval_criterion(self.mb_output, self.mb_y)
 
@@ -65,9 +51,7 @@ class SelfSupervisedProblem(
             return self.model(input_data)
 
         if isinstance(self.mb_x, (list, tuple)):
-            o1 = forward_single_input(self.mb_x1)
-            o2 = forward_single_input(self.mb_x2)
-            return o1, o2
+            return [forward_single_input(x) for x in self.mb_x]
 
         return forward_single_input(self.mb_x)
 

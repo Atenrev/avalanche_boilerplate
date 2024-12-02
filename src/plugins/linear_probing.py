@@ -106,16 +106,12 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
             batch_size=strategy.train_mb_size,
         )
         feats, targets = self.extract_features(strategy.model, dataloader, strategy.device)
-
-        last_layer_dim = None
-        last_module = list(strategy.model.modules())[-1]
-
-        if hasattr(last_module, "out_features"):
-            last_layer_dim = last_module.out_features
-        elif hasattr(last_module, "num_features"):
-            last_layer_dim = last_module.num_features
-        else:
-            raise ValueError("Could not determine the last layer dimension.")
+        
+        # Get the last layer dimension by passing a dummy input
+        shape = self.benchmark.train_stream[0].dataset[0][0].shape
+        dummy_input = torch.zeros(1, *shape)
+        dummy_input = dummy_input.to(strategy.device)
+        last_layer_dim = strategy.model(dummy_input).shape[-1]
 
         self.probe_model = nn.Sequential(
             nn.Linear(last_layer_dim, self.num_classes, bias=False),

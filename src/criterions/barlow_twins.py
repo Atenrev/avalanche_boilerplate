@@ -15,7 +15,8 @@ class BarlowTwinsLoss(nn.Module):
         super().__init__()
         self.lambda_param = lambda_param
 
-    def forward(self, z_a, z_b):
+    def forward(self, z):
+        z_a, z_b = z
         c = z_a.T @ z_b
         c = c / z_a.size(0)
 

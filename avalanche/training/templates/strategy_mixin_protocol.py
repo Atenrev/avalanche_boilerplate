@@ -122,10 +122,6 @@ class SelfSupervisedStrategyProtocol(
 ):
     mb_x: Tensor
 
-    mb_x1: Tensor
-
-    mb_x2: Tensor
-
     mb_y: Tensor
 
     mb_task_id: Tensor
