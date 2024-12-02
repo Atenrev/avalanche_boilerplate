@@ -13,8 +13,8 @@ def parse_args() -> argparse.Namespace:
     # ADD CUSTOM PARAMETERS HERE
 
     # Model parameters
-    parser.add_argument("--model", type=str, default="resnet18_bt",
-                        choices=["simple_mlp", "resnet18", "resnet18_bt"],
+    parser.add_argument("--model", type=str, default="resnet32s_bt",
+                        choices=["simple_mlp", "resnet32s", "resnet32s_bt"],
                         help="Model to use for the benchmark")
 
     # Benchmark parameters

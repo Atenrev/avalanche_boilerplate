@@ -89,8 +89,8 @@ def ConConUnconfounded(
     train_dataset = []
     test_dataset = []
     
-    train_dataset.append(ConConDataset(dataset_root, "unconf", 0, train=True))
-    test_dataset.append(ConConDataset(dataset_root, "unconf", 0, train=False))
+    train_dataset.append(ConConDataset(dataset_root, "unconfounded", 0, train=True))
+    test_dataset.append(ConConDataset(dataset_root, "unconfounded", 0, train=False))
 
     return ni_benchmark(
         train_dataset,

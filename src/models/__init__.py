@@ -1,1 +1,1 @@
-from .resnet18_bt import Resnet18BT
+from .resnet18_bt import Resnet32sBT

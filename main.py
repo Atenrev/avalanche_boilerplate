@@ -6,6 +6,7 @@ from torch.nn import CrossEntropyLoss
 from torchvision.models import resnet18
 
 from avalanche.models import SimpleMLP
+from avalanche.models.resnet32 import ResNet, BasicBlock
 from avalanche.training.determinism.rng_manager import RNGManager
 from avalanche.checkpointing import maybe_load_checkpoint, save_checkpoint
 from avalanche.evaluation.metrics import (
@@ -80,6 +81,46 @@ def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_exper
     return benchmark, num_classes
 
 
+def get_strategy(args, model, optimizer, device, plugins, eval_plugin):
+    strategy_class = None
+    base_params = {
+        "model": model,
+        "optimizer": optimizer,
+        "train_epochs": args.epochs,
+        "train_mb_size": args.batch_size,
+        "eval_mb_size": args.batch_size,
+        "device": device,
+        "plugins": plugins,
+        "evaluator": eval_plugin,
+    }
+        
+    if args.strategy == "naive":
+        if args.loss_type == "self_supervised":
+            strategy_class = SelfSupervisedNaive
+            base_params["criterion"] = BarlowTwinsLoss()
+            base_params["eval_criterion"] = torch.nn.CrossEntropyLoss()
+            base_params["ss_augmentations"] = BTTrainingAugmentations(
+                image_size=args.image_size)
+        elif args.loss_type == "supervised":
+            strategy_class = Naive
+            base_params["criterion"] = CrossEntropyLoss()
+        else:
+            raise NotImplementedError
+    elif args.strategy == "cumulative":
+        strategy_class = Cumulative
+        base_params["criterion"] = CrossEntropyLoss()
+    elif args.strategy == "lwf":
+        strategy_class = LwF
+        base_params["criterion"] = CrossEntropyLoss()
+        base_params["alpha"] = args.alpha
+        base_params["temperature"] = args.temperature
+    # ADD YOUR CUSTOM STRATEGIES HERE
+    else:
+        raise NotImplementedError
+    
+    return strategy_class(**base_params)
+
+
 def run_experiment(args, seed):
     # --- CONFIG
     RNGManager.set_random_seeds(seed)
@@ -89,16 +130,13 @@ def run_experiment(args, seed):
         ) and args.cuda >= 0 else "cpu"
     )
 
-    run_name = f"{args.strategy}_w_{args.model}_on_{args.benchmark}"
-    run_name += f"_lr({args.lr})_bs({args.batch_size})_epochs({args.epochs})_exps({args.n_experiences})"
+    run_name = f"{args.strategy}_w_{args.model}_on_{args.benchmark}_loss({args.loss_type})"
+    run_name += f"_epochs({args.epochs})_exps({args.n_experiences})_lr({args.lr})_bs({args.batch_size})"
+
+    # ADD CUSTOM PARAMETERS TO THE RUN NAME HERE
 
     if args.strategy == "lwf":
         run_name += f"_alpha({args.alpha})"
-        
-    if args.loss_type == "self_supervised":
-        run_name += f"_loss({args.loss_type})"
-
-    # ADD CUSTOM PARAMETERS TO THE RUN NAME HERE
     
     if "linear_probing" in args.plugins:
         run_name += "_linear_probing"
@@ -152,11 +190,10 @@ def run_experiment(args, seed):
             num_classes=num_classes,
             input_size=3 * args.image_size * args.image_size
         ).to(device)
-    elif args.model == "resnet18":
-        model = resnet18().to(device)
-        model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
-    elif args.model == "resnet18_bt":
-        model = Resnet18BT().to(device)
+    elif args.model == "resnet32s":
+        model = ResNet(BasicBlock, [5, 5, 5], num_classes=num_classes).to(device)
+    elif args.model == "resnet32s_bt":
+        model = Resnet32sBT().to(device)
     else:
         raise NotImplementedError
 
@@ -212,63 +249,7 @@ def run_experiment(args, seed):
         ))
 
     # CREATE THE STRATEGY INSTANCE
-    if args.strategy == "naive":
-        if args.loss_type == "self_supervised":
-            cl_strategy = SelfSupervisedNaive(
-                model,
-                optimizer,
-                BarlowTwinsLoss(),
-                ss_augmentations=BTTrainingAugmentations(
-                    image_size=args.image_size),
-                train_mb_size=args.batch_size,
-                train_epochs=args.epochs,
-                eval_mb_size=args.batch_size,
-                device=device,
-                plugins=plugins,
-                evaluator=eval_plugin,
-                eval_criterion=torch.nn.CrossEntropyLoss(),
-            )
-        elif args.loss_type == "supervised":
-            cl_strategy = Naive(
-                model,
-                optimizer,
-                CrossEntropyLoss(),
-                train_mb_size=args.batch_size,
-                train_epochs=args.epochs,
-                eval_mb_size=args.batch_size,
-                device=device,
-                plugins=plugins,
-                evaluator=eval_plugin,
-            )
-    elif args.strategy == "cumulative":
-        cl_strategy = Cumulative(
-            model,
-            optimizer,
-            CrossEntropyLoss(),
-            train_mb_size=args.batch_size,
-            train_epochs=args.epochs,
-            eval_mb_size=args.batch_size,
-            device=device,
-            plugins=plugins,
-            evaluator=eval_plugin,
-        )
-    elif args.strategy == "lwf":
-        cl_strategy = LwF(
-            model,
-            optimizer,
-            CrossEntropyLoss(),
-            alpha=args.alpha,
-            temperature=args.temperature,
-            train_mb_size=args.batch_size,
-            train_epochs=args.epochs,
-            eval_mb_size=args.batch_size,
-            device=device,
-            plugins=plugins,
-            evaluator=eval_plugin,
-        )
-    # ADD YOUR CUSTOM STRATEGIES HERE
-    else:
-        raise NotImplementedError
+    cl_strategy = get_strategy(args, model, optimizer, device, plugins, eval_plugin)
 
     if args.resume_from_checkpoint:
         cl_strategy, initial_exp = maybe_load_checkpoint(
