@@ -131,6 +131,8 @@ class SelfSupervisedStrategyProtocol(
     mb_task_id: Tensor
 
     ss_augmentations: Optional[Sequence[Callable]]
+    
+    _eval_criterion: Optional[CriterionType]
 
 
 __all__ = [

@@ -45,6 +45,7 @@ class Naive(SelfSupervisedTemplate):
             EvaluationPlugin, Callable[[], EvaluationPlugin]
         ] = default_evaluator,
         eval_every=-1,
+        eval_criterion: Optional[CriterionType] = None,
         **base_kwargs
     ):
         """
@@ -81,6 +82,7 @@ class Naive(SelfSupervisedTemplate):
             plugins=plugins,
             evaluator=evaluator,
             eval_every=eval_every,
+            eval_criterion=eval_criterion,
             **base_kwargs
         )
 

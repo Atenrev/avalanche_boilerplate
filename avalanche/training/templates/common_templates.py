@@ -326,6 +326,7 @@ class SelfSupervisedTemplate(
             EvaluationPlugin, Callable[[], EvaluationPlugin]
         ] = default_evaluator,
         eval_every=-1,
+        eval_criterion: Optional[CriterionType] = None,
         peval_mode="epoch",
         **kwargs,
     ):
@@ -354,6 +355,7 @@ class SelfSupervisedTemplate(
             `eval_every` epochs or iterations (Default='epoch').
         """
         self.ss_augmentations = ss_augmentations
+        self._eval_criterion = eval_criterion
 
         kwargs["model"] = model
         kwargs["optimizer"] = optimizer
@@ -383,16 +385,16 @@ class SelfSupervisedTemplate(
 
         return super()._before_training_iteration(**kwargs)
     
-    def eval(self, exp_list: Union[TExperienceType, CLStream[TExperienceType]], **kwargs):
-        """
-        The evaluation implementation is expected to be passed through
-        the plugins. This method triggers the evaluation plugins
-        """
-        for p in self.plugins:
-            if hasattr(p, "eval_representations"):
-                # For now, we only support one plugin that can handle
-                # the evaluation of representations. 
-                return p.eval_representations(self, exp_list, **kwargs)
+    # def eval(self, exp_list: Union[TExperienceType, CLStream[TExperienceType]], **kwargs):
+    #     """
+    #     The evaluation implementation is expected to be passed through
+    #     the plugins. This method triggers the evaluation plugins
+    #     """
+    #     for p in self.plugins:
+    #         if hasattr(p, "eval_representations"):
+    #             # For now, we only support one plugin that can handle
+    #             # the evaluation of representations. 
+    #             return p.eval_representations(self, exp_list, **kwargs)
         
 
 __all__ = [

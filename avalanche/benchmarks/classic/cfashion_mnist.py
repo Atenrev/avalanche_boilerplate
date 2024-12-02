@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Sequence, Optional, Union, Any
 from torchvision import transforms
 
-from avalanche.benchmarks import ni_benchmark
+from avalanche.benchmarks import nc_benchmark
 from avalanche.benchmarks.classic.classic_benchmarks_utils import (
     check_vision_benchmark,
 )
@@ -127,7 +127,7 @@ def SplitFMNIST(
 
     fmnist_train, fmnist_test = get_fmnist_dataset(dataset_root)
 
-    return ni_benchmark(
+    return nc_benchmark(
         train_dataset=fmnist_train,
         test_dataset=fmnist_test,
         n_experiences=n_experiences,

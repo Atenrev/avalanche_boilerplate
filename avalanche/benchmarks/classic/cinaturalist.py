@@ -18,7 +18,7 @@ from avalanche.benchmarks.datasets import (
     INATURALIST2018,
     default_dataset_location,
 )
-from avalanche.benchmarks import ni_benchmark
+from avalanche.benchmarks import nc_benchmark
 
 from torchvision import transforms
 
@@ -159,7 +159,7 @@ def SplitInaturalist(
     )
     per_exp_classes, fixed_class_order = _get_split(super_categories, train_set)
 
-    return ni_benchmark(
+    return nc_benchmark(
         fixed_class_order=fixed_class_order,
         per_exp_classes=per_exp_classes,
         train_dataset=train_set,

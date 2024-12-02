@@ -17,7 +17,7 @@ from avalanche.benchmarks.classic.classic_benchmarks_utils import (
     check_vision_benchmark,
 )
 from avalanche.benchmarks.datasets import TinyImagenet
-from avalanche.benchmarks.scenarios.deprecated.generators import ni_benchmark
+from avalanche.benchmarks.scenarios.deprecated.generators import nc_benchmark
 
 
 _default_train_transform = transforms.Compose(
@@ -111,7 +111,7 @@ def SplitTinyImageNet(
 
     train_set, test_set = _get_tiny_imagenet_dataset(dataset_root)
 
-    return ni_benchmark(
+    return nc_benchmark(
         train_dataset=train_set,
         test_dataset=test_set,
         n_experiences=n_experiences,

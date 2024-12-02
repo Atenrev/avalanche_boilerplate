@@ -36,7 +36,7 @@ from avalanche.benchmarks.utils.utils import concat_datasets
 from avalanche.models import LeNet5, SlimResNet18
 from torchvision.transforms import Compose
 from avalanche.evaluation.metrics import TaskAwareAccuracy
-from avalanche.benchmarks import ExModelCLScenario, ni_benchmark
+from avalanche.benchmarks import ExModelCLScenario, nc_benchmark
 import copy
 
 import urllib.request
@@ -207,7 +207,7 @@ class ExMLCoRE50(ExModelCLScenario):
             core50nc = CORe50(scenario="nc")
             train_cat = concat_datasets([e.dataset for e in core50nc.train_stream])
             test_cat = concat_datasets([e.dataset for e in core50nc.test_stream])
-            benchmark = ni_benchmark(
+            benchmark = nc_benchmark(
                 train_cat, test_cat, n_experiences=1, task_labels=False
             )
         else:

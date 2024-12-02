@@ -52,7 +52,10 @@ class SelfSupervisedProblem(
 
     def criterion(self):
         """Loss function for self-supervised problems."""
-        return self._criterion(self.mb_output[0], self.mb_output[1])
+        if self.is_training or self._eval_criterion is None:
+            return self._criterion(self.mb_output[0], self.mb_output[1])
+        else:
+            return self._eval_criterion(self.mb_output, self.mb_y)
 
     def forward(self):
         """Compute the model's output given the current mini-batch."""

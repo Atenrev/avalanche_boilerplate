@@ -50,27 +50,34 @@ def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_exper
 
     if benchmark_name == "split_mnist":
         benchmark_class = SplitMNIST
+        num_classes = 10
     elif benchmark_name == "split_fashion_mnist":
         benchmark_class = SplitFMNIST
+        num_classes = 10
     elif benchmark_name == "split_cifar10":
         benchmark_class = SplitCIFAR10
+        num_classes = 10
     elif benchmark_name == "split_cifar100":
         benchmark_class = SplitCIFAR100
+        num_classes = 100
     elif benchmark_name == "concon_strict":
         benchmark_class = ConConStrict
+        num_classes = 2
         base_params["dataset_root"] = dataset_root
     elif benchmark_name == "concon_disjoint":
         benchmark_class = ConConDisjoint
+        num_classes = 2
         base_params["dataset_root"] = dataset_root
     elif benchmark_name == "concon_unconfounded":
         benchmark_class = ConConUnconfounded
+        num_classes = 2
         base_params["dataset_root"] = dataset_root
     else:
         raise NotImplementedError
 
     benchmark = benchmark_class(**base_params)
     benchmark.name = benchmark_name
-    return benchmark
+    return benchmark, num_classes
 
 
 def run_experiment(args, seed):
@@ -115,10 +122,31 @@ def run_experiment(args, seed):
     # SAVE CONFIG
     with open(os.path.join(logs_dir, "config.txt"), "w") as f:
         f.write(str(args))
+        
+    # TRANSFORMS CREATION
+    if args.transform == "none":
+        train_transform, eval_transform = None, None
+    elif args.transform == "mnist":
+        train_transform, eval_transform = MNISTTransform(args.image_size)
+    elif args.transform == "cifar":
+        train_transform, eval_transform = CIFARTransform(args.image_size)
+    elif args.transform == "barlow_twins":
+        train_transform, eval_transform = BarlowTwinsTransform(args.image_size)
+    else:
+        raise NotImplementedError
+        
+    # TRAIN BENCHMARK CREATION
+    benchmark, num_classes = get_benchmark(args.benchmark, seed, train_transform, eval_transform,
+                              n_experiences=args.n_experiences, dataset_root=args.dataset_root)
+
+    # EVAL BENCHMARK CREATION
+    eval_benchmarks = [
+        get_benchmark(benchmark_name, seed, train_transform, eval_transform,
+                      n_experiences=args.n_experiences, dataset_root=args.dataset_root)[0]
+        for benchmark_name in args.eval_benchmarks
+    ]
 
     # MODEL CREATION
-    num_classes = 10 if args.benchmark != "cifar100" else 100
-
     if args.model == "simple_mlp":
         model = SimpleMLP(
             num_classes=num_classes,
@@ -134,29 +162,6 @@ def run_experiment(args, seed):
 
     # CREATE THE OPTIMIZER
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-
-    # TRANSFORMS CREATION
-    if args.transform == "none":
-        train_transform, eval_transform = None, None
-    elif args.transform == "mnist":
-        train_transform, eval_transform = MNISTTransform(args.image_size)
-    elif args.transform == "cifar":
-        train_transform, eval_transform = CIFARTransform(args.image_size)
-    elif args.transform == "barlow_twins":
-        train_transform, eval_transform = BarlowTwinsTransform(args.image_size)
-    else:
-        raise NotImplementedError
-
-    # TRAIN BENCHMARK CREATION
-    benchmark = get_benchmark(args.benchmark, seed, train_transform, eval_transform,
-                              n_experiences=args.n_experiences, dataset_root=args.dataset_root)
-
-    # EVAL BENCHMARK CREATION
-    eval_benchmarks = [
-        get_benchmark(benchmark_name, seed, train_transform, eval_transform,
-                      n_experiences=args.n_experiences, dataset_root=args.dataset_root)
-        for benchmark_name in args.eval_benchmarks
-    ]
 
     # LOGGERS
     interactive_logger = InteractiveLogger()
@@ -200,7 +205,7 @@ def run_experiment(args, seed):
     if "linear_probing" in args.plugins:
         plugins.append(LinearProbingPlugin(
             benchmark=get_benchmark(args.benchmark, seed, train_transform, eval_transform,
-                                    n_experiences=1, dataset_root=args.dataset_root),
+                                    n_experiences=1, dataset_root=args.dataset_root)[0],
             num_classes=num_classes,
             epochs=args.probe_epochs,
             lr=args.probe_lr,
@@ -221,6 +226,7 @@ def run_experiment(args, seed):
                 device=device,
                 plugins=plugins,
                 evaluator=eval_plugin,
+                eval_criterion=torch.nn.CrossEntropyLoss(),
             )
         elif args.loss_type == "supervised":
             cl_strategy = Naive(

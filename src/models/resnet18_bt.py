@@ -31,4 +31,4 @@ class Resnet18BT(nn.Module):
         self.bn = nn.BatchNorm1d(sizes[-1], affine=False)
 
     def forward(self, x):
-        return self.projector(self.backbone(x))
+        return self.bn(self.projector(self.backbone(x)))

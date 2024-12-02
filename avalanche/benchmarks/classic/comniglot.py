@@ -17,7 +17,7 @@ from torchvision.transforms import (
 )
 from PIL.Image import Image
 
-from avalanche.benchmarks import ni_benchmark
+from avalanche.benchmarks import nc_benchmark
 from avalanche.benchmarks.classic.classic_benchmarks_utils import (
     check_vision_benchmark,
 )
@@ -135,7 +135,7 @@ def SplitAlphabetOmniglot(
     """
 
     omniglot_train, omniglot_test = _get_omniglot_dataset(dataset_root)
-    return ni_benchmark(
+    return nc_benchmark(
         train_dataset=omniglot_train,
         test_dataset=omniglot_test,
         n_experiences=n_experiences,
@@ -238,7 +238,7 @@ def SplitOmniglot(
     """
 
     omniglot_train, omniglot_test = _get_omniglot_dataset(dataset_root)
-    return ni_benchmark(
+    return nc_benchmark(
         train_dataset=omniglot_train,
         test_dataset=omniglot_test,
         n_experiences=n_experiences,

@@ -18,11 +18,11 @@ def parse_args() -> argparse.Namespace:
                         help="Model to use for the benchmark")
 
     # Benchmark parameters
-    parser.add_argument("--benchmark", type=str, default="concon_disjoint",
+    parser.add_argument("--benchmark", type=str, default="split_cifar10",
                         choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100",
                                  "concon_disjoint", "concon_strict", "concon_unconf"],
                         help="Benchmark to use for the experiment")
-    parser.add_argument("--eval_benchmarks", type=str, nargs='+', default=["concon_disjoint", "concon_unconfounded"],
+    parser.add_argument("--eval_benchmarks", type=str, nargs='+', default=["split_cifar10"],
                         choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100",
                                  "concon_disjoint", "concon_strict", "concon_unconfounded"],
                         help="Benchmarks to use for evaluation")
@@ -45,9 +45,9 @@ def parse_args() -> argparse.Namespace:
                         help="Plugins to use for the benchmark")
     
     # General training parameters
-    parser.add_argument("--epochs", type=int, default=20,
+    parser.add_argument("--epochs", type=int, default=1,
                         help="Number of epochs to use for the benchmark")
-    parser.add_argument("--batch_size", type=int, default=256,
+    parser.add_argument("--batch_size", type=int, default=128,
                         help="Batch size to use for the benchmark")
     
     # Optimizer parameters
@@ -84,7 +84,7 @@ def parse_args() -> argparse.Namespace:
                         help="Output directory for the results")
     parser.add_argument("--project_name", type=str, default="AWESOME_CL_PROJECT",
                         help="Name of the project. If using wandb, this will be the name of the project")
-    parser.add_argument("--wandb", action="store_true", default=False,
+    parser.add_argument("--wandb", action="store_true", default=True,
                         help="Use wandb for logging")
     
     return parser.parse_args()

@@ -17,7 +17,7 @@ from avalanche.benchmarks.classic.classic_benchmarks_utils import (
     check_vision_benchmark,
 )
 from avalanche.benchmarks.datasets import CUB200
-from avalanche.benchmarks import ni_benchmark
+from avalanche.benchmarks import nc_benchmark
 
 from torchvision import transforms
 
@@ -133,7 +133,7 @@ def SplitCUB200(
     else:
         per_exp_classes = None
 
-    return ni_benchmark(
+    return nc_benchmark(
         train_dataset=train_set,
         test_dataset=test_set,
         n_experiences=n_experiences,

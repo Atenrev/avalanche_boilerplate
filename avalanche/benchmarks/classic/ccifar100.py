@@ -27,7 +27,7 @@ from avalanche.benchmarks.utils.classification_dataset import (
     _concat_taskaware_classification_datasets_sequentially,
 )
 
-from avalanche.benchmarks import ni_benchmark, NIScenario
+from avalanche.benchmarks import nc_benchmark, NCScenario
 
 _default_cifar100_train_transform = transforms.Compose(
     [
@@ -139,7 +139,7 @@ def SplitCIFAR100(
     """
     cifar_train, cifar_test = get_cifar100_dataset(dataset_root)
 
-    return ni_benchmark(
+    return nc_benchmark(
         train_dataset=cifar_train,
         test_dataset=cifar_test,
         n_experiences=n_experiences,
@@ -165,7 +165,7 @@ def SplitCIFAR110(
     eval_transform: Optional[Any] = _default_cifar100_eval_transform,
     dataset_root_cifar10: Optional[Union[str, Path]] = None,
     dataset_root_cifar100: Optional[Union[str, Path]] = None
-) -> NIScenario:
+) -> NCScenario:
     """
     Creates a CL benchmark using both the CIFAR100 and CIFAR10 datasets.
 
@@ -261,7 +261,7 @@ def SplitCIFAR110(
         cifar_100_class_order = random.sample(range(10, 110), 100)
         class_order.extend(cifar_100_class_order)
 
-    return ni_benchmark(
+    return nc_benchmark(
         cifar_10_100_train,
         cifar_10_100_test,
         n_experiences=n_experiences,

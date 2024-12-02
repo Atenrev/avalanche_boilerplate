@@ -13,7 +13,7 @@ from typing import Sequence, Optional, Union, Any
 
 from torchvision import transforms
 
-from avalanche.benchmarks import ni_benchmark, NIScenario
+from avalanche.benchmarks import nc_benchmark, NCScenario
 from avalanche.benchmarks.classic.classic_benchmarks_utils import (
     check_vision_benchmark,
 )
@@ -50,7 +50,7 @@ def SplitCIFAR10(
     train_transform: Optional[Any] = _default_cifar10_train_transform,
     eval_transform: Optional[Any] = _default_cifar10_eval_transform,
     dataset_root: Optional[Union[str, Path]] = None
-) -> NIScenario:
+) -> NCScenario:
     """
     Creates a CL benchmark using the CIFAR10 dataset.
 
@@ -130,7 +130,7 @@ def SplitCIFAR10(
     """
     cifar_train, cifar_test = get_cifar10_dataset(dataset_root)
 
-    return ni_benchmark(
+    return nc_benchmark(
         train_dataset=cifar_train,
         test_dataset=cifar_test,
         n_experiences=n_experiences,
