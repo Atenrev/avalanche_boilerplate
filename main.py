@@ -170,7 +170,7 @@ def run_experiment(args, seed):
         ) and args.cuda >= 0 else "cpu"
     )
 
-    run_name = f"{args.strategy}_w_{args.model}_on_{args.benchmark}_loss({args.loss_type})"
+    run_name = f"{args.strategy}_w_{args.model}_on_{args.benchmark}_loss({args.loss_type})_criterion({args.criterion})"
     run_name += f"_epochs({args.epochs})_exps({args.n_experiences})_lr({args.lr})_bs({args.batch_size})"
 
     # ADD CUSTOM PARAMETERS TO THE RUN NAME HERE

@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
                         help="Criterion to use for the training")
     parser.add_argument("--epochs", type=int, default=200,
                         help="Number of epochs to use")
-    parser.add_argument("--batch_size", type=int, default=128,
+    parser.add_argument("--batch_size", type=int, default=100,
                         help="Batch size to use")
     parser.add_argument("--eval_every", type=int, default=10,
                         help="Evaluate every n epochs. -1 to disable evaluation. 0 to evaluate only at the end of each experience")

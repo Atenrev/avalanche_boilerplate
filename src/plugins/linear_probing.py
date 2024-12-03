@@ -131,6 +131,8 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
     def after_eval(self, strategy, *args, **kwargs):
         super().after_eval(strategy, *args, **kwargs)
         strategy.model = self.original_model
+        self.probe_model = None
+        self.original_model = None
 
 
 __all__ = [
