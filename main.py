@@ -23,6 +23,7 @@ from avalanche.training.self_supervised import Naive as SelfSupervisedNaive
 
 from src.args import parse_args
 from src.benchmarks import *
+from src.optimizers import *
 from src.transforms import *
 from src.criterions import *
 from src.loggers import *
@@ -106,6 +107,7 @@ def get_strategy(args, model, optimizer, device, plugins, eval_plugin):
         "device": device,
         "plugins": plugins,
         "evaluator": eval_plugin,
+        "eval_every": args.eval_every,
     }
 
     if args.criterion == "CE":
@@ -233,7 +235,7 @@ def run_experiment(args, seed):
         optimizer = torch.optim.Adam(
             model.parameters(),
             lr=args.lr)
-    elif args.optimizer == "sgd":
+    elif args.optimizer == "sgd" or args.optimizer == "lars":
         optimizer = torch.optim.SGD(
             model.parameters(),
             lr=args.lr,
@@ -241,6 +243,10 @@ def run_experiment(args, seed):
             nesterov=args.nesterov,
             weight_decay=args.weight_decay
         )
+
+        if args.optimizer == "lars":
+            optimizer = LARSWrapper(
+                optimizer, eta=0.005, clip=True, exclude_bias_n_norm=True,)
     else:
         raise NotImplementedError
 

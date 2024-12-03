@@ -7,6 +7,7 @@
 /venv
 /data
 /avalanche_repo
+/bash
 
 ## PyTorch
 

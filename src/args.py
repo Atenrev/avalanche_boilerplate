@@ -30,7 +30,7 @@ def parse_args() -> argparse.Namespace:
                         help="Number of experiences to use")
     parser.add_argument("--image_size", type=int, default=32,
                         help="Image size to use")
-    parser.add_argument("--transform", type=str, default="emp_ssl",
+    parser.add_argument("--transform", type=str, default="barlow_twins",
                         choices=["none", "mnist", "cifar", "barlow_twins", "emp_ssl"],
                         help="Transform to use")
     parser.add_argument("--metrics", type=str, nargs='+', default=["loss", "accuracy", "forgetting"], 
@@ -46,17 +46,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--loss_type", type=str, default="self_supervised",
                         choices=["supervised", "self_supervised"],
                         help="Type of loss to use")
-    parser.add_argument("--criterion", type=str, default="emp_ssl",
+    parser.add_argument("--criterion", type=str, default="barlow_twins",
                         choices=["CE", "barlow_twins", "emp_ssl"],
                         help="Criterion to use for the training")
-    parser.add_argument("--epochs", type=int, default=1,
+    parser.add_argument("--epochs", type=int, default=200,
                         help="Number of epochs to use")
     parser.add_argument("--batch_size", type=int, default=128,
                         help="Batch size to use")
+    parser.add_argument("--eval_every", type=int, default=10,
+                        help="Evaluate every n epochs. -1 to disable evaluation. 0 to evaluate only at the end of each experience")
     
     # Optimizer parameters
-    parser.add_argument("--optimizer", type=str, default="adam",
-                        choices=["adam", "sgd"],
+    parser.add_argument("--optimizer", type=str, default="lars",
+                        choices=["adam", "sgd", "lars"],
                         help="Optimizer to use")
     parser.add_argument("--lr", type=float, default=0.2,
                         help="Learning rate to use with the optimizer")

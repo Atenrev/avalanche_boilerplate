@@ -23,7 +23,7 @@ class ResNet18(nn.Module):
         if mini_version:
             self.backbone.conv1 = nn.Conv2d(
                 3, 64, kernel_size=3, stride=1, padding=1, bias=False)
-            # self.backbone.maxpool = nn.Identity()
+            self.backbone.maxpool = nn.Identity()
 
         # projector
         sizes = [512] + list(projector)
@@ -40,5 +40,5 @@ class ResNet18(nn.Module):
     def forward(self, x):
         x = self.backbone(x)
         x = self.projector(x)
-        return F.normalize(x, p=self.p_norm, dim=-1)
+        return F.normalize(x, p=self.p_norm)
         

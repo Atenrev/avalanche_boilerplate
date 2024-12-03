@@ -65,7 +65,7 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
             x, y = mb[0].to(device), mb[1].to(device)
             with torch.no_grad():
                 feats = model(x)
-            features.append(feats.cpu())
+            features.append(feats.detach().cpu())
             targets.append(y.cpu())
 
         features = torch.cat(features)
@@ -73,6 +73,7 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
 
         return features, targets
 
+    @torch.enable_grad()
     def train_linear_probing(self, dataloader, device):
         """
         Train the linear probing classifier.
@@ -96,7 +97,7 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
                 bar.set_description(
                     f"Epoch {epoch + 1}/{self.train_epochs} - Loss: {loss.item():.4f} - Acc: {acc.item():.4f}")
 
-    def after_training_exp(self, strategy, **kwargs):
+    def before_eval(self, strategy, *args, **kwargs):
         """
         After the training of the current experience, 
         train the linear probing classifier.
