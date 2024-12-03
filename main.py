@@ -181,6 +181,9 @@ def run_experiment(args, seed):
     if "linear_probing" in args.plugins:
         run_name += "_linear_probing"
         run_name += f"_probe_lr({args.probe_lr})_probe_epochs({args.probe_epochs})"
+        
+    if "shrink_and_perturb" in args.plugins:
+        run_name += f"_shrink_and_perturb({args.shrink}_{args.perturb})"
 
     # ADD CUSTOM PLUGIN PARAMETERS TO THE RUN NAME HERE
 
@@ -296,6 +299,14 @@ def run_experiment(args, seed):
             num_classes=num_classes,
             epochs=args.probe_epochs,
             lr=args.probe_lr,
+        ))
+        
+    if "shrink_and_perturb" in args.plugins:
+        plugins.append(ShrinkAndPerturbPlugin(
+            shrink=args.shrink,
+            perturb=args.perturb,
+            every_epoch=False,
+            every_experience=True,
         ))
 
     # CREATE THE STRATEGY INSTANCE

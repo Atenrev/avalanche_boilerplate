@@ -10,7 +10,7 @@ def parse_args() -> argparse.Namespace:
     # ADD CUSTOM PARAMETERS HERE
 
     # Model parameters
-    parser.add_argument("--model", type=str, default="resnet18_mini_encoder",
+    parser.add_argument("--model", type=str, default="resnet32s",
                         choices=["simple_mlp", "resnet32s", 
                                  "resnet18_encoder", "resnet18_mini_encoder"],
                         help="Model to use. Models that end with _encoder are used for self-supervised learning")
@@ -26,11 +26,11 @@ def parse_args() -> argparse.Namespace:
                         help="Benchmarks to use for evaluation")
     parser.add_argument("--dataset_root", type=str, default="data/concon",
                         help="Root directory of the dataset")
-    parser.add_argument("--n_experiences", type=int, default=1,
+    parser.add_argument("--n_experiences", type=int, default=5,
                         help="Number of experiences to use")
     parser.add_argument("--image_size", type=int, default=32,
                         help="Image size to use")
-    parser.add_argument("--transform", type=str, default="barlow_twins",
+    parser.add_argument("--transform", type=str, default="cifar",
                         choices=["none", "mnist", "cifar", "barlow_twins", "emp_ssl"],
                         help="Transform to use")
     parser.add_argument("--metrics", type=str, nargs='+', default=["loss", "accuracy", "forgetting"], 
@@ -38,29 +38,29 @@ def parse_args() -> argparse.Namespace:
                         help="Metrics to use")
     
     # Plugins
-    parser.add_argument("--plugins", type=str, nargs='+', default=["linear_probing"],
-                        choices=["linear_probing"],
+    parser.add_argument("--plugins", type=str, nargs='+', default=["shrink_and_perturb"],
+                        choices=["linear_probing", "shrink_and_perturb"],
                         help="Plugins to use")
     
     # General training parameters
-    parser.add_argument("--loss_type", type=str, default="self_supervised",
+    parser.add_argument("--loss_type", type=str, default="supervised",
                         choices=["supervised", "self_supervised"],
                         help="Type of loss to use")
-    parser.add_argument("--criterion", type=str, default="barlow_twins",
+    parser.add_argument("--criterion", type=str, default="CE",
                         choices=["CE", "barlow_twins", "emp_ssl"],
                         help="Criterion to use for the training")
-    parser.add_argument("--epochs", type=int, default=200,
+    parser.add_argument("--epochs", type=int, default=20,
                         help="Number of epochs to use")
-    parser.add_argument("--batch_size", type=int, default=100,
+    parser.add_argument("--batch_size", type=int, default=256,
                         help="Batch size to use")
-    parser.add_argument("--eval_every", type=int, default=10,
+    parser.add_argument("--eval_every", type=int, default=-1,
                         help="Evaluate every n epochs. -1 to disable evaluation. 0 to evaluate only at the end of each experience")
     
     # Optimizer parameters
-    parser.add_argument("--optimizer", type=str, default="lars",
+    parser.add_argument("--optimizer", type=str, default="sgd",
                         choices=["adam", "sgd", "lars"],
                         help="Optimizer to use")
-    parser.add_argument("--lr", type=float, default=0.2,
+    parser.add_argument("--lr", type=float, default=1e-3,
                         help="Learning rate to use with the optimizer")
     parser.add_argument("--weight_decay", type=float, default=1e-4,
                         help="Weight decay to use with the optimizer")
@@ -74,6 +74,12 @@ def parse_args() -> argparse.Namespace:
                         help="Number of epochs to use for the linear probing classifier")
     parser.add_argument("--probe_lr", type=float, default=1e-3,
                         help="Learning rate to use for the linear probing classifier")
+    
+    # Shrink and Perturb parameters
+    parser.add_argument("--shrink", type=float, default=0.4,
+                        help="Shrink factor to use")
+    parser.add_argument("--perturb", type=float, default=0.1,
+                        help="Perturb factor to use")
 
     # Learning without forgetting parameters
     parser.add_argument("--alpha", type=float, default=1.0,
