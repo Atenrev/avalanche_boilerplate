@@ -38,7 +38,7 @@ def parse_args() -> argparse.Namespace:
                         help="Metrics to use")
     
     # Plugins
-    parser.add_argument("--plugins", type=str, nargs='+', default=["shrink_and_perturb"],
+    parser.add_argument("--plugins", type=str, nargs='+', default=["linear_probing"],
                         choices=["linear_probing", "shrink_and_perturb"],
                         help="Plugins to use")
     
@@ -49,7 +49,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--criterion", type=str, default="CE",
                         choices=["CE", "barlow_twins", "emp_ssl"],
                         help="Criterion to use for the training")
-    parser.add_argument("--epochs", type=int, default=20,
+    parser.add_argument("--epochs", type=int, default=50,
                         help="Number of epochs to use")
     parser.add_argument("--batch_size", type=int, default=256,
                         help="Batch size to use")
@@ -60,7 +60,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--optimizer", type=str, default="sgd",
                         choices=["adam", "sgd", "lars"],
                         help="Optimizer to use")
-    parser.add_argument("--lr", type=float, default=1e-3,
+    parser.add_argument("--lr", type=float, default=1e-2,
                         help="Learning rate to use with the optimizer")
     parser.add_argument("--weight_decay", type=float, default=1e-4,
                         help="Weight decay to use with the optimizer")
@@ -70,7 +70,7 @@ def parse_args() -> argparse.Namespace:
                         help="Use Nesterov momentum with the optimizer")
     
     # Linear Probing parameters
-    parser.add_argument("--probe_epochs", type=int, default=4,
+    parser.add_argument("--probe_epochs", type=int, default=100,
                         help="Number of epochs to use for the linear probing classifier")
     parser.add_argument("--probe_lr", type=float, default=1e-3,
                         help="Learning rate to use for the linear probing classifier")
@@ -80,6 +80,10 @@ def parse_args() -> argparse.Namespace:
                         help="Shrink factor to use")
     parser.add_argument("--perturb", type=float, default=0.1,
                         help="Perturb factor to use")
+    parser.add_argument("--sp_every_epoch", action="store_true", default=False,
+                        help="Shrink and perturb every epoch")
+    parser.add_argument("--sp_every_experience", action="store_true", default=True,
+                        help="Shrink and perturb every experience")
 
     # Learning without forgetting parameters
     parser.add_argument("--alpha", type=float, default=1.0,

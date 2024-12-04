@@ -31,7 +31,9 @@ class SimpleClassifier(nn.Module):
         self.head = head
         
     def forward(self, x):
-        return self.head(self.backbone(x))
+        x = self.backbone(x)
+        x = x.view(x.size(0), -1)
+        return self.head(x)
 
 
 class LinearProbingPlugin(SelfSupervisedPlugin):
@@ -47,7 +49,7 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
         self.num_classes = num_classes
         self.train_epochs = epochs
         self.lr = lr
-        self.probe_model = None
+        self.classifier = None
         self.original_model = None
         self.probe_strategy = None
 
@@ -65,7 +67,7 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
             x, y = mb[0].to(device), mb[1].to(device)
             with torch.no_grad():
                 feats = model(x)
-            features.append(feats.detach().cpu())
+            features.append(feats.view(feats.size(0), -1).detach().cpu())
             targets.append(y.cpu())
 
         features = torch.cat(features)
@@ -78,18 +80,18 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
         """
         Train the linear probing classifier.
         """
-        self.probe_model.to(device)
+        self.classifier.to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = torch.optim.Adam(self.probe_model.parameters(), lr=self.lr)
+        optimizer = torch.optim.Adam(self.classifier.parameters(), lr=self.lr)
 
-        self.probe_model.train()
+        self.classifier.train()
         for epoch in range(self.train_epochs):
             bar = tqdm(dataloader)
             for features, targets in bar:
                 features = features.to(device)
                 targets = targets.to(device)
                 optimizer.zero_grad()
-                outputs = self.probe_model(features)
+                outputs = self.classifier(features)
                 loss = criterion(outputs, targets)
                 loss.backward()
                 optimizer.step()
@@ -106,15 +108,22 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
             self.benchmark.train_stream[0].dataset,
             batch_size=strategy.train_mb_size,
         )
-        feats, targets = self.extract_features(strategy.model, dataloader, strategy.device)
+        
+        model_backbone = strategy.model
+        
+        # If the model has a fc layer, remove it
+        if hasattr(model_backbone, "fc"):
+            model_backbone = nn.Sequential(*list(model_backbone.children())[:-1])
+            
+        feats, targets = self.extract_features(model_backbone, dataloader, strategy.device)
         
         # Get the last layer dimension by passing a dummy input
         shape = self.benchmark.train_stream[0].dataset[0][0].shape
         dummy_input = torch.zeros(1, *shape)
         dummy_input = dummy_input.to(strategy.device)
-        last_layer_dim = strategy.model(dummy_input).shape[-1]
+        last_layer_dim = model_backbone(dummy_input).squeeze().shape[0]
 
-        self.probe_model = nn.Sequential(
+        self.classifier = nn.Sequential(
             nn.Linear(last_layer_dim, self.num_classes, bias=False),
         )
 
@@ -124,14 +133,14 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
 
         self.train_linear_probing(features_dataloader, strategy.device)
         
-        self.probe_model = SimpleClassifier(strategy.model, self.probe_model)
+        self.classifier = SimpleClassifier(model_backbone, self.classifier)
         self.original_model = strategy.model
-        strategy.model = self.probe_model
+        strategy.model = self.classifier
         
     def after_eval(self, strategy, *args, **kwargs):
         super().after_eval(strategy, *args, **kwargs)
         strategy.model = self.original_model
-        self.probe_model = None
+        self.classifier = None
         self.original_model = None
 
 

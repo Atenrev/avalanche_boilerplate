@@ -305,8 +305,8 @@ def run_experiment(args, seed):
         plugins.append(ShrinkAndPerturbPlugin(
             shrink=args.shrink,
             perturb=args.perturb,
-            every_epoch=False,
-            every_experience=True,
+            every_epoch=args.sp_every_epoch,
+            every_experience=args.sp_every_experience,
         ))
 
     # CREATE THE STRATEGY INSTANCE
