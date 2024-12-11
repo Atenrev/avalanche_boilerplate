@@ -4,7 +4,6 @@ from typing import Union
 from PIL import Image
 
 
-
 class ConConDataset:
     """
     ConConDataset represents a continual learning task with two classes: positive and negative.
@@ -31,9 +30,9 @@ class ConConDataset:
     """
     
     def __init__(self, root: Union[str, Path], variant: str, scenario: int, train: bool = True):
-        assert variant in ["strict", "disjoint", "unconf"], "Invalid variant, must be one of 'strict', 'disjoint', 'unconf'"
+        assert variant in ["strict", "disjoint", "unconfounded"], "Invalid variant, must be one of 'strict', 'disjoint', 'unconf'"
         assert scenario in range(0, 3), "Invalid scenario, must be between 0 and 2"
-        assert variant != "unconf" or scenario == 0, "Unconf scenario only has one variant"
+        assert variant != "unconfounded" or scenario == 0, "Unconfounded scenario only has one variant"
         
         self.root = Path(root) / variant
         

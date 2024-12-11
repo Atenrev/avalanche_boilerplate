@@ -16,8 +16,8 @@ from avalanche.evaluation.metrics import (
     loss_metrics,
 )
 from avalanche.logging import InteractiveLogger
-from avalanche.training.plugins import EvaluationPlugin
-from avalanche.training.supervised import Naive, LwF, Cumulative
+from avalanche.training.plugins import EvaluationPlugin, LwFPlugin, EWCPlugin, SynapticIntelligencePlugin
+from avalanche.training.supervised import Naive, Cumulative
 from avalanche.benchmarks import SplitMNIST, SplitFMNIST, SplitCIFAR10, SplitCIFAR100
 from avalanche.training.self_supervised import Naive as SelfSupervisedNaive
 
@@ -43,6 +43,9 @@ def get_model(model_name, num_classes, device, no_head=False):
             model.classifier = nn.Identity()
         else:
             model.classifier = nn.Linear(512, num_classes)
+    elif model_name == "resnet_18":
+        model = resnet18(pretrained=False)
+        model.fc = nn.Linear(model.fc.in_features, num_classes)
     elif model_name == "resnet32s":
         model = ResNet(BasicBlock, [5, 5, 5], num_classes=num_classes)
     elif model_name == "resnet18_encoder":
@@ -139,10 +142,6 @@ def get_strategy(args, model, optimizer, device, plugins, eval_plugin):
             raise NotImplementedError
     elif args.strategy == "cumulative":
         strategy_class = Cumulative
-    elif args.strategy == "lwf":
-        strategy_class = LwF
-        base_params["alpha"] = args.alpha
-        base_params["temperature"] = args.temperature
     # ADD YOUR CUSTOM STRATEGIES HERE
     else:
         raise NotImplementedError
@@ -175,8 +174,14 @@ def run_experiment(args, seed):
 
     # ADD CUSTOM PARAMETERS TO THE RUN NAME HERE
 
-    if args.strategy == "lwf":
-        run_name += f"_alpha({args.alpha})"
+    if "lwf" in args.plugins:
+        run_name += f"_lwf_alpha({args.lwf_alpha})_temperature({args.lwf_temperature})"
+        
+    if "ewc" in args.plugins:
+        run_name += f"_ewc_lambda({args.ewc_lambda})"
+        
+    if "si" in args.plugins:
+        run_name += f"_si_lambda({args.si_lambda})"
 
     if "linear_probing" in args.plugins:
         run_name += "_linear_probing"
@@ -291,6 +296,22 @@ def run_experiment(args, seed):
 
     # CREATE THE PLUGINS
     plugins = []
+    
+    if "lwf" in args.plugins:
+        plugins.append(LwFPlugin(
+            alpha=args.lwf_alpha,
+            temperature=args.lwf_temperature,
+        ))
+        
+    if "ewc" in args.plugins:
+        plugins.append(EWCPlugin(
+            ewc_lambda=args.ewc_lambda,
+        ))
+        
+    if "si" in args.plugins:
+        plugins.append(SynapticIntelligencePlugin(
+            si_lambda=args.si_lambda,
+        ))
 
     if "linear_probing" in args.plugins:
         plugins.append(LinearProbingPlugin(
