@@ -66,6 +66,9 @@ def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_exper
         "train_transform": train_transform,
         "eval_transform": eval_transform,
     }
+    
+    if dataset_root is not None:
+        base_params["dataset_root"] = dataset_root
 
     if benchmark_name == "split_mnist":
         benchmark_class = SplitMNIST
@@ -82,15 +85,12 @@ def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_exper
     elif benchmark_name == "concon_strict":
         benchmark_class = ConConStrict
         num_classes = 2
-        base_params["dataset_root"] = dataset_root
     elif benchmark_name == "concon_disjoint":
         benchmark_class = ConConDisjoint
         num_classes = 2
-        base_params["dataset_root"] = dataset_root
     elif benchmark_name == "concon_unconfounded":
         benchmark_class = ConConUnconfounded
         num_classes = 2
-        base_params["dataset_root"] = dataset_root
     else:
         raise NotImplementedError
 
@@ -176,17 +176,17 @@ def run_experiment(args, seed):
 
     if "lwf" in args.plugins:
         run_name += f"_lwf_alpha({args.lwf_alpha})_temperature({args.lwf_temperature})"
-        
+
     if "ewc" in args.plugins:
         run_name += f"_ewc_lambda({args.ewc_lambda})"
-        
+
     if "si" in args.plugins:
         run_name += f"_si_lambda({args.si_lambda})"
 
     if "linear_probing" in args.plugins:
         run_name += "_linear_probing"
         run_name += f"_probe_lr({args.probe_lr})_probe_epochs({args.probe_epochs})"
-        
+
     if "shrink_and_perturb" in args.plugins:
         run_name += f"_shrink_and_perturb({args.shrink}_{args.perturb})"
 
@@ -296,18 +296,18 @@ def run_experiment(args, seed):
 
     # CREATE THE PLUGINS
     plugins = []
-    
+
     if "lwf" in args.plugins:
         plugins.append(LwFPlugin(
             alpha=args.lwf_alpha,
             temperature=args.lwf_temperature,
         ))
-        
+
     if "ewc" in args.plugins:
         plugins.append(EWCPlugin(
             ewc_lambda=args.ewc_lambda,
         ))
-        
+
     if "si" in args.plugins:
         plugins.append(SynapticIntelligencePlugin(
             si_lambda=args.si_lambda,
@@ -321,7 +321,7 @@ def run_experiment(args, seed):
             epochs=args.probe_epochs,
             lr=args.probe_lr,
         ))
-        
+
     if "shrink_and_perturb" in args.plugins:
         plugins.append(ShrinkAndPerturbPlugin(
             shrink=args.shrink,

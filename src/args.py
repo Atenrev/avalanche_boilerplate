@@ -24,9 +24,9 @@ def parse_args() -> argparse.Namespace:
                         choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100",
                                  "concon_disjoint", "concon_strict", "concon_unconfounded"],
                         help="Benchmarks to use for evaluation")
-    parser.add_argument("--dataset_root", type=str, default="data/concon",
+    parser.add_argument("--dataset_root", type=str, 
                         help="Root directory of the dataset")
-    parser.add_argument("--n_experiences", type=int, default=1,
+    parser.add_argument("--n_experiences", type=int, default=3,
                         help="Number of experiences to use")
     parser.add_argument("--image_size", type=int, default=32,
                         help="Image size to use")

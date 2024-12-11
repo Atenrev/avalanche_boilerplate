@@ -52,13 +52,13 @@ def build_concon_scenario(
 
 
 def ConConDisjoint(
-    dataset_root: Union[str, Path],
     n_experiences: int,
     *,
     seed: Optional[int] = None,
     shuffle_order: bool = False,
     train_transform: Optional[Any] = None,
     eval_transform: Optional[Any] = None,
+    dataset_root: Optional[Union[str, Path]] = None,
     **kwargs,
 ) -> CLScenario:
     """
@@ -81,8 +81,8 @@ def ConConDisjoint(
     list_test_dataset = []
 
     for i in range(3):
-        train_dataset = ConConDataset(dataset_root, "disjoint", i, train=True)
-        test_dataset = ConConDataset(dataset_root, "disjoint", i, train=False)
+        train_dataset = ConConDataset("disjoint", i, root=dataset_root, train=True)
+        test_dataset = ConConDataset("disjoint", i, root=dataset_root, train=False)
         train_dataset = _as_taskaware_supervised_classification_dataset(
             train_dataset,
             transform=train_transform
@@ -104,13 +104,13 @@ def ConConDisjoint(
 
 
 def ConConStrict(
-    dataset_root: Union[str, Path],
     n_experiences: int,
     *,
     seed: Optional[int] = None,
     shuffle_order: bool = False,
     train_transform: Optional[Any] = None,
     eval_transform: Optional[Any] = None,
+    dataset_root: Optional[Union[str, Path]] = None,
     **kwargs,
 ) -> CLScenario:
     """
@@ -133,8 +133,8 @@ def ConConStrict(
     list_test_dataset = []
 
     for i in range(3):
-        train_dataset = ConConDataset(dataset_root, "strict", i, train=True)
-        test_dataset = ConConDataset(dataset_root, "strict", i, train=False)
+        train_dataset = ConConDataset("strict", i, root=dataset_root, train=True)
+        test_dataset = ConConDataset("strict", i, root=dataset_root, train=False)
         train_dataset = _as_taskaware_supervised_classification_dataset(
             train_dataset,
             transform=train_transform
@@ -156,10 +156,10 @@ def ConConStrict(
 
 
 def ConConUnconfounded(
-    dataset_root: Union[str, Path],
     *,
     train_transform: Optional[Any] = None,
     eval_transform: Optional[Any] = None,
+    dataset_root: Optional[Union[str, Path]] = None,
     **kwargs,
 ) -> CLScenario:
     """
@@ -169,9 +169,9 @@ def ConConUnconfounded(
     test_dataset = []
 
     train_dataset.append(ConConDataset(
-        dataset_root, "unconfounded", 0, train=True))
+        "unconfounded", 0, root=dataset_root, train=True))
     test_dataset.append(ConConDataset(
-        dataset_root, "unconfounded", 0, train=False))
+        "unconfounded", 0, root=dataset_root, train=False))
 
     train_dataset[0] = _as_taskaware_supervised_classification_dataset(
         train_dataset[0],
