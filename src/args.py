@@ -4,14 +4,15 @@ import argparse
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--strategy", type=str, default="naive",
-                        choices=["naive", "cumulative"], # ADD YOUR CUSTOM STRATEGIES HERE
+                        # ADD YOUR CUSTOM STRATEGIES HERE
+                        choices=["naive", "cumulative"],
                         help="Strategy to use")
-    
+
     # ADD CUSTOM PARAMETERS HERE
 
     # Model parameters
     parser.add_argument("--model", type=str, default="resnet_18",
-                        choices=["simple_mlp", "resnet32s", "resnet_18", 
+                        choices=["simple_mlp", "resnet32s", "resnet_18",
                                  "resnet18_encoder", "resnet18_mini_encoder"],
                         help="Model to use. Models that end with _encoder are used for self-supervised learning")
 
@@ -20,28 +21,31 @@ def parse_args() -> argparse.Namespace:
                         choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100",
                                  "concon_disjoint", "concon_strict", "concon_unconf"],
                         help="Benchmark to use for the experiment")
-    parser.add_argument("--eval_benchmarks", type=str, nargs='+', default=["concon_strict", "concon_unconfounded"],
+    parser.add_argument("--eval_benchmarks", type=str, nargs='+', default=["concon_strict"],
                         choices=["split_mnist", "split_fashion_mnist", "split_cifar10", "split_cifar100",
                                  "concon_disjoint", "concon_strict", "concon_unconfounded"],
                         help="Benchmarks to use for evaluation")
-    parser.add_argument("--dataset_root", type=str, 
+    parser.add_argument("--dataset_root", type=str,
                         help="Root directory of the dataset")
     parser.add_argument("--n_experiences", type=int, default=3,
                         help="Number of experiences to use")
     parser.add_argument("--image_size", type=int, default=32,
                         help="Image size to use")
     parser.add_argument("--transform", type=str, default="cifar",
-                        choices=["none", "mnist", "cifar", "barlow_twins", "emp_ssl"],
+                        choices=["none", "mnist", "cifar",
+                                 "barlow_twins", "emp_ssl"],
                         help="Transform to use")
-    parser.add_argument("--metrics", type=str, nargs='+', default=["loss", "accuracy", "forgetting"], 
+    parser.add_argument("--metrics", type=str, nargs='+', default=["loss", "accuracy", "forgetting"],
                         choices=["loss", "accuracy", "forgetting", ],
                         help="Metrics to use")
-    
+
     # Plugins
-    parser.add_argument("--plugins", type=str, nargs='+', default=["linear_probing"],
-                        choices=["lwf", "ewc", "si", "linear_probing", "shrink_and_perturb"],
+    parser.add_argument("--plugins", type=str, nargs='+', default=["random_perturb"],
+                        choices=["lwf", "feature_distillation", "ewc", "si",
+                                 "linear_probing", "shrink_and_perturb", "vanilla_model_merging",
+                                 "random_perturb",],
                         help="Plugins to use")
-    
+
     # General training parameters
     parser.add_argument("--loss_type", type=str, default="supervised",
                         choices=["supervised", "self_supervised"],
@@ -49,13 +53,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--criterion", type=str, default="CE",
                         choices=["CE", "barlow_twins", "emp_ssl"],
                         help="Criterion to use for the training")
-    parser.add_argument("--epochs", type=int, default=50,
+    parser.add_argument("--epochs", type=int, default=1,
                         help="Number of epochs to use")
     parser.add_argument("--batch_size", type=int, default=256,
                         help="Batch size to use")
     parser.add_argument("--eval_every", type=int, default=-1,
                         help="Evaluate every n epochs. -1 to disable evaluation. 0 to evaluate only at the end of each experience")
-    
+
     # Optimizer parameters
     parser.add_argument("--optimizer", type=str, default="sgd",
                         choices=["adam", "sgd", "lars"],
@@ -75,29 +79,51 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lwf_temperature", type=float, default=2.0,
                         help="Temperature for the distillation loss")
     
+    # Feature distillation parameters
+    parser.add_argument("--fd_alpha", type=float, default=1.0,
+                        help="Regularization factor for the distillation loss")
+    parser.add_argument("--fd_mode", type=str, default="cosine",
+                        choices=["cosine", "mse"],
+                        help="Mode to use for the distillation loss")
+
     # Elastic Weight Consolidation parameters
     parser.add_argument("--ewc_lambda", type=float, default=1e-2,
                         help="Regularization factor for the EWC loss")
-    
+
     # Synaptic Intelligence parameters
     parser.add_argument("--si_lambda", type=float, default=1e-2,
                         help="Regularization factor for the SI loss")
-    
+
     # Linear Probing parameters
-    parser.add_argument("--probe_epochs", type=int, default=100,
+    parser.add_argument("--probe_epochs", type=int, default=2,
                         help="Number of epochs to use for the linear probing classifier")
     parser.add_argument("--probe_lr", type=float, default=1e-3,
                         help="Learning rate to use for the linear probing classifier")
-    
+
     # Shrink and Perturb parameters
     parser.add_argument("--shrink", type=float, default=0.4,
                         help="Shrink factor to use")
     parser.add_argument("--perturb", type=float, default=0.1,
                         help="Perturb factor to use")
-    parser.add_argument("--sp_every_epoch", action="store_true", default=False,
-                        help="Shrink and perturb every epoch")
-    parser.add_argument("--sp_every_experience", action="store_true", default=True,
-                        help="Shrink and perturb every experience")
+    parser.add_argument("--sp_every", default="exp",
+                        choices=["exp", "epoch"],
+                        help="Shrink and perturb every epoch or experience")
+    
+    # Random Perturb parameters
+    parser.add_argument("--rp_std", type=float, default=0.01,
+                        help="Standard deviation ratio for perturbation")
+    parser.add_argument("--rp_sensitivity", type=float, default=0.01,
+                        help="Magnitude sensitivity for perturbation")
+    parser.add_argument("--rp_every", default="epoch",
+                        choices=["exp", "epoch"],
+                        help="Random perturb every epoch or experience")
+
+    # Model Merging parameters
+    parser.add_argument("--merge_coeff", type=float, default=0.5,
+                        help="Merge coefficient to use")
+    parser.add_argument("--mm_every", default="exp",
+                        choices=["exp", "epoch"],
+                        help="Merge models every epoch or experience")
 
     # General experiment parameters
     parser.add_argument("--seeds", type=int, nargs='+', default=[1714],
@@ -119,5 +145,5 @@ def parse_args() -> argparse.Namespace:
                         help="Name of the project. If using wandb, this will be the name of the project")
     parser.add_argument("--wandb", action="store_true", default=False,
                         help="Use wandb for logging")
-    
+
     return parser.parse_args()

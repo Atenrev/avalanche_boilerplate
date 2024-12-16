@@ -82,8 +82,9 @@ class FeatureExtractorModel(nn.Module):
         self.features = None
 
     def forward(self, x):
-        self.features = self.feature_extractor(x)
-        x = self.train_classifier(self.features)
+        features = self.feature_extractor(x)
+        self.features = features.clone().detach()
+        x = self.train_classifier(features)
         return x
 
 

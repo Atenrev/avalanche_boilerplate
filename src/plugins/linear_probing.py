@@ -1,15 +1,13 @@
 import torch
-import os
-import tempfile
 
 from tqdm import tqdm
 from torch import nn
 
 from typing import Union
 
+from avalanche.models import FeatureExtractorModel
 from avalanche.benchmarks import NCScenario, NIScenario
 from avalanche.core import SelfSupervisedPlugin
-from avalanche.training.supervised import Naive
 
 
 class FeaturesDataset(torch.utils.data.Dataset):
@@ -109,11 +107,7 @@ class LinearProbingPlugin(SelfSupervisedPlugin):
             batch_size=strategy.train_mb_size,
         )
         
-        model_backbone = strategy.model
-        
-        # If the model has a fc layer, remove it
-        if hasattr(model_backbone, "fc"):
-            model_backbone = nn.Sequential(*list(model_backbone.children())[:-1])
+        model_backbone: FeatureExtractorModel = strategy.model.feature_extractor
             
         feats, targets = self.extract_features(model_backbone, dataloader, strategy.device)
         

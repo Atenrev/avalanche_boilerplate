@@ -80,21 +80,23 @@ class CSVLogger(BaseLogger, SupervisedPlugin):
 
     def _print_csv_headers(self):
         print(
-            "benchmark_name",
+            "stream_name",
             "metric_name",
             "training_exp",
             "epoch",
             "x_plot",
+            "task",
             "value",
             sep=",",
             file=self.training_file,
             flush=True,
         )
         print(
-            "benchmark_name",
+            "stream_name",
             "metric_name",
-            "eval_exp",
             "training_exp",
+            "eval_exp",
+            "task",
             "value",
             sep=",",
             file=self.eval_file,
@@ -109,18 +111,19 @@ class CSVLogger(BaseLogger, SupervisedPlugin):
         else:
             return str(m_val)
 
-    def print_train_metrics(self, benchmark_name, training_exp, epoch):
+    def print_train_metrics(self, training_exp, epoch):
         for metric_logs in self.metric_vals.values():
-            for name, x, val in metric_logs:
+            for stream_name, task, name, x, val in metric_logs:
                 if isinstance(val, UNSUPPORTED_TYPES):
                     continue
                 val = self._val_to_str(val)
                 print(
-                    benchmark_name,
+                    stream_name,
                     name,
                     training_exp,
                     epoch,
                     x,
+                    task,
                     val,
                     sep=",",
                     file=self.training_file,
@@ -129,23 +132,29 @@ class CSVLogger(BaseLogger, SupervisedPlugin):
         self.metric_vals = {}
         
     def log_single_metric(self, name, value, x_plot) -> None:
+        name_parts = name.split("/")
+        stream_name = name_parts[2]
+        metric_name = name_parts[0]
+        task = name_parts[-2] if name_parts[-1].startswith("Exp") else name_parts[-1]
+        
         if self.metric_vals.get(name) is None:
-            self.metric_vals[name] = [(name, x_plot, value)]
+            self.metric_vals[name] = [(stream_name, task, metric_name, x_plot, value)]
         else:
-            self.metric_vals[name].append((name, x_plot, value))
+            self.metric_vals[name].append((stream_name, task, metric_name, x_plot, value))
 
-    def print_eval_metrics(self, benchmark_name, eval_exp, training_exp):
+    def print_eval_metrics(self, eval_exp, training_exp):
         for metric_logs in self.metric_vals.values():
-            for name, x, val in metric_logs:
+            for stream_name, task, name, x, val in metric_logs:
                 if isinstance(val, UNSUPPORTED_TYPES):
                     continue
 
                 val = self._val_to_str(val)
                 print(
-                    benchmark_name,
+                    stream_name,
                     name,
                     eval_exp,
                     training_exp,
+                    task,
                     val,
                     sep=",",
                     file=self.eval_file,
@@ -160,7 +169,6 @@ class CSVLogger(BaseLogger, SupervisedPlugin):
     ):
         super().after_training_epoch(strategy, metric_values, **kwargs)
         self.print_train_metrics(
-            strategy.experience.benchmark.name,
             self.training_exp_id,
             strategy.clock.train_exp_epochs,
         )
@@ -176,7 +184,6 @@ class CSVLogger(BaseLogger, SupervisedPlugin):
 
         if not self.in_train_phase:
             self.print_eval_metrics(
-                strategy.experience.benchmark.name,
                 strategy.experience.current_experience,
                 self.training_exp_id,
             )
@@ -212,7 +219,6 @@ class CSVLogger(BaseLogger, SupervisedPlugin):
     ):
         super().after_eval(strategy, metric_values, **kwargs)
         self.print_eval_metrics(
-            strategy.experience.benchmark.name,
             strategy.experience.current_experience,
             self.training_exp_id,
         )

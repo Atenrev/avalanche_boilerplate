@@ -2,11 +2,13 @@ import os
 import torch
 import torch.optim.lr_scheduler
 
+from types import MethodType
+
 from torch import nn
 from torch.nn import CrossEntropyLoss
 from torchvision.models import resnet18
 
-from avalanche.models import SimpleMLP
+from avalanche.models import SimpleMLP, FeatureExtractorModel
 from avalanche.models.resnet32 import ResNet, BasicBlock
 from avalanche.training.determinism.rng_manager import RNGManager
 from avalanche.checkpointing import maybe_load_checkpoint, save_checkpoint
@@ -16,7 +18,8 @@ from avalanche.evaluation.metrics import (
     loss_metrics,
 )
 from avalanche.logging import InteractiveLogger
-from avalanche.training.plugins import EvaluationPlugin, LwFPlugin, EWCPlugin, SynapticIntelligencePlugin
+from avalanche.training.plugins import (
+    EvaluationPlugin, LwFPlugin, EWCPlugin, SynapticIntelligencePlugin, FeatureDistillationPlugin)
 from avalanche.training.supervised import Naive, Cumulative
 from avalanche.benchmarks import SplitMNIST, SplitFMNIST, SplitCIFAR10, SplitCIFAR100
 from avalanche.training.self_supervised import Naive as SelfSupervisedNaive
@@ -38,20 +41,58 @@ def get_model(model_name, num_classes, device, no_head=False):
             input_size=3 * args.image_size * args.image_size,
             hidden_size=512,
         )
+        model.classifier = nn.Identity()
 
         if no_head:
-            model.classifier = nn.Identity()
+            model = FeatureExtractorModel(
+                model,
+                nn.Identity(),
+            )
         else:
-            model.classifier = nn.Linear(512, num_classes)
+            model = FeatureExtractorModel(
+                model,
+                nn.Linear(512, num_classes)
+            )
+
     elif model_name == "resnet_18":
         model = resnet18(pretrained=False)
-        model.fc = nn.Linear(model.fc.in_features, num_classes)
+        in_features = model.fc.in_features
+        model.fc = nn.Identity()
+
+        if no_head:
+            model = FeatureExtractorModel(
+                model,
+                nn.Identity(),
+            )
+        else:
+            model = FeatureExtractorModel(
+                model,
+                nn.Linear(in_features, num_classes)
+            )
+
     elif model_name == "resnet32s":
         model = ResNet(BasicBlock, [5, 5, 5], num_classes=num_classes)
-    elif model_name == "resnet18_encoder":
-        model = ResNet18(mini_version=False)
-    elif model_name == "resnet18_mini_encoder":
-        model = ResNet18(mini_version=True)
+        in_features = model.fc.in_features
+        model.fc = nn.Identity()
+
+        if no_head:
+            model = FeatureExtractorModel(
+                model,
+                nn.Identity(),
+            )
+        else:
+            model = FeatureExtractorModel(
+                model,
+                nn.Linear(in_features, num_classes)
+            )
+
+    elif model_name == "resnet18_encoder" or model_name == "resnet18_mini_encoder":
+        model = ResNet18(mini_version=model_name == "resnet18_mini_encoder")
+        model = FeatureExtractorModel(
+            model,
+            nn.Identity(),
+        )
+
     else:
         raise NotImplementedError
 
@@ -66,7 +107,7 @@ def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_exper
         "train_transform": train_transform,
         "eval_transform": eval_transform,
     }
-    
+
     if dataset_root is not None:
         base_params["dataset_root"] = dataset_root
 
@@ -95,7 +136,20 @@ def get_benchmark(benchmark_name, seed, train_transform, eval_transform, n_exper
         raise NotImplementedError
 
     benchmark = benchmark_class(**base_params)
-    benchmark.name = benchmark_name
+    
+    # Add the name of the benchmark at the beginning of the name of all streams
+    benchmark.train_stream.name = f"{benchmark_name}_{benchmark.train_stream.name}"
+    benchmark.test_stream.name = f"{benchmark_name}_{benchmark.test_stream.name}"
+    
+    # Update keys in stream_definitions
+    if hasattr(benchmark, "stream_definitions"):
+        benchmark.stream_definitions[f"{benchmark_name}_train"] = benchmark.stream_definitions.pop("train")
+        benchmark.stream_definitions[f"{benchmark_name}_test"] = benchmark.stream_definitions.pop("test")
+    
+    # Update keys in streams
+    benchmark._streams[f"{benchmark_name}_train"] = benchmark._streams.pop("train")
+    benchmark._streams[f"{benchmark_name}_test"] = benchmark._streams.pop("test")
+    
     return benchmark, num_classes
 
 
@@ -175,7 +229,10 @@ def run_experiment(args, seed):
     # ADD CUSTOM PARAMETERS TO THE RUN NAME HERE
 
     if "lwf" in args.plugins:
-        run_name += f"_lwf_alpha({args.lwf_alpha})_temperature({args.lwf_temperature})"
+        run_name += f"_lwf_alpha({args.lwf_alpha})_temp({args.lwf_temperature})"
+
+    if "feature_distillation" in args.plugins:
+        run_name += f"_fd_alpha({args.fd_alpha})_mode({args.fd_mode})"
 
     if "ewc" in args.plugins:
         run_name += f"_ewc_lambda({args.ewc_lambda})"
@@ -184,11 +241,20 @@ def run_experiment(args, seed):
         run_name += f"_si_lambda({args.si_lambda})"
 
     if "linear_probing" in args.plugins:
-        run_name += "_linear_probing"
-        run_name += f"_probe_lr({args.probe_lr})_probe_epochs({args.probe_epochs})"
+        run_name += "_lp"
+        run_name += f"_lr({args.probe_lr})_epochs({args.probe_epochs})"
 
     if "shrink_and_perturb" in args.plugins:
-        run_name += f"_shrink_and_perturb({args.shrink}_{args.perturb})"
+        run_name += f"_shpe({args.shrink}_{args.perturb})"
+        run_name += f"_every({args.sp_every})"
+        
+    if "random_perturb" in args.plugins:
+        run_name += f"_rp_std({args.rp_std})_sensitivity({args.rp_sensitivity})"
+        run_name += f"_every({args.rp_every})"
+
+    if "vanilla_model_merging" in args.plugins:
+        run_name += f"_vmm({args.merge_coeff})"
+        run_name += f"_every({args.mm_every})"
 
     # ADD CUSTOM PLUGIN PARAMETERS TO THE RUN NAME HERE
 
@@ -303,6 +369,12 @@ def run_experiment(args, seed):
             temperature=args.lwf_temperature,
         ))
 
+    if "feature_distillation" in args.plugins:
+        plugins.append(FeatureDistillationPlugin(
+            alpha=args.fd_alpha,
+            mode=args.fd_mode,
+        ))
+
     if "ewc" in args.plugins:
         plugins.append(EWCPlugin(
             ewc_lambda=args.ewc_lambda,
@@ -326,8 +398,20 @@ def run_experiment(args, seed):
         plugins.append(ShrinkAndPerturbPlugin(
             shrink=args.shrink,
             perturb=args.perturb,
-            every_epoch=args.sp_every_epoch,
-            every_experience=args.sp_every_experience,
+            every=args.sp_every
+        ))
+        
+    if "random_perturb" in args.plugins:
+        plugins.append(RandomPerturbPlugin(
+            perturb_std_ratio=args.rp_std,
+            magnitude_sensitivity=args.rp_sensitivity,
+            every=args.rp_every
+        ))
+
+    if "vanilla_model_merging" in args.plugins:
+        plugins.append(VanillaModelMergingPlugin(
+            merge_coeff=args.merge_coeff,
+            every=args.mm_every
         ))
 
     # CREATE THE STRATEGY INSTANCE

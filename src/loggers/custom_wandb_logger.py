@@ -168,8 +168,6 @@ class WandBLogger(BaseLogger, SupervisedPlugin):
                 self._log_checkpoint(name, value, x_plot)
             return
         
-        name = self.current_benchmark_name + "/" + name
-
         if isinstance(value, AlternativeValues):
             value = value.best_supported_value(
                 Image,
@@ -262,7 +260,6 @@ class WandBLogger(BaseLogger, SupervisedPlugin):
         **kwargs,
     ):
         super().before_training(strategy, metric_values, **kwargs)
-        self.current_benchmark_name = strategy.experience.benchmark.name
 
     def before_eval_exp(
         self,
@@ -271,7 +268,6 @@ class WandBLogger(BaseLogger, SupervisedPlugin):
         **kwargs
     ):
         super().before_eval_exp(strategy, *args, **kwargs)
-        self.current_benchmark_name = strategy.experience.benchmark.name
 
     def __getstate__(self):
         state = self.__dict__.copy()
